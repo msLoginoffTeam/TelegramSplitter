@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{51C4F99B-88A5-48D8-A39A-B4E67232BF14}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.yml = docker-compose.yml
+		.env.example = .env.example
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetSplitter.Persistence", "BudgetSplitter.Persistence\BudgetSplitter.Persistence.csproj", "{44683560-C0B6-40B3-8862-F93B5F3F91D9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetSplitter.Common", "BudgetSplitter.Common\BudgetSplitter.Common.csproj", "{93539CB7-897F-43BE-AB44-90081C617BBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetSplitter.App", "BudgetSplitter.App\BudgetSplitter.App.csproj", "{86A0955B-65E3-4FF6-9987-36F58A0000FC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{44683560-C0B6-40B3-8862-F93B5F3F91D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44683560-C0B6-40B3-8862-F93B5F3F91D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44683560-C0B6-40B3-8862-F93B5F3F91D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44683560-C0B6-40B3-8862-F93B5F3F91D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93539CB7-897F-43BE-AB44-90081C617BBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93539CB7-897F-43BE-AB44-90081C617BBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93539CB7-897F-43BE-AB44-90081C617BBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93539CB7-897F-43BE-AB44-90081C617BBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86A0955B-65E3-4FF6-9987-36F58A0000FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86A0955B-65E3-4FF6-9987-36F58A0000FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86A0955B-65E3-4FF6-9987-36F58A0000FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86A0955B-65E3-4FF6-9987-36F58A0000FC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
