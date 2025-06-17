@@ -1,0 +1,54 @@
+# ===== Visual Studio / Rider =====
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.DotSettings.user
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# ===== Build outputs =====
+**/bin/
+**/obj/
+
+# ===== Rider scratch & log =====
+.scratches/
+*.log
+
+# ===== ASP.NET / IIS =====
+appsettings.*.json   # оставить только в коде шаблон, реальные файлы сбрасывать
+launchSettings.json
+
+# ===== Secrets / Env =====
+.env
+.env.local
+secrets.json
+
+# ===== Docker =====
+**/docker-compose.override.yml
+**/docker-compose.*.yml
+**/Dockerfile.*
+
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+*.swp
+*~ 
+
+# ===== NuGet =====
+*.nupkg
+# if you use Paket:
+.paket/
+paket-files/
+
+# ===== EF Migrations (если хочешь включать/отключать) =====
+# оставь миграции, но можно игнорить миграции bin/obj
+**/Migrations/**/*.Designer.cs
+
+# ===== Optional: Rider caches =====
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/inspectionProfiles
+.idea/dictionaries
+.idea/httpRequests
