@@ -6,7 +6,7 @@ namespace BudgetSplitter.Common.Dtos.Response;
 public class OperationHistoryResponseDto
 {
     public Guid Id { get; set; }
-    public string Type { get; set; } = null!;     // Expense, Payment, Confirm и т.п.
+    public string Type { get; set; } = null!;
     public Guid InitiatorUserId { get; set; }
     public DateTime Timestamp { get; set; }
     public string? Description { get; set; }
