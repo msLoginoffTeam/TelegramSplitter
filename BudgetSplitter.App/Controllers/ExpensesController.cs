@@ -13,7 +13,6 @@ namespace BudgetSplitter.App.Controllers
         private readonly IExpenseService _expenseService;
         public ExpensesController(IExpenseService expenseService) => _expenseService = expenseService;
 
-        // GET api/groups/{groupId}/expenses
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetExpenses(
             Guid groupId,
@@ -23,14 +22,12 @@ namespace BudgetSplitter.App.Controllers
             return Ok(expenses);
         }
 
-        // GET api/groups/{groupId}/expenses/drafts
         [HttpGet("drafts")]
         public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetDraftExpenses(Guid groupId)
         {
             throw new NotImplementedException();
         }
 
-        // GET api/groups/{groupId}/expenses/{expenseId}
         [HttpGet("{expenseId:guid}")]
         public async Task<ActionResult<ExpenseResponseDto>> GetExpense(Guid groupId, Guid expenseId)
         {
@@ -38,7 +35,6 @@ namespace BudgetSplitter.App.Controllers
             return Ok(expense);
         }
 
-        // POST api/groups/{groupId}/expenses
         [HttpPost]
         public async Task<ActionResult<ExpenseResponseDto>> CreateExpense(
             Guid groupId,
@@ -48,7 +44,6 @@ namespace BudgetSplitter.App.Controllers
             return Ok(response);
         }
 
-        // PUT api/groups/{groupId}/expenses/{expenseId}
         [HttpPut("{expenseId:guid}")]
         public async Task<IActionResult> UpdateExpense(
             Guid groupId,
@@ -59,7 +54,6 @@ namespace BudgetSplitter.App.Controllers
             return Ok();
         }
 
-        // DELETE api/groups/{groupId}/expenses/{expenseId}
         [HttpDelete("{expenseId:guid}")]
         public async Task<IActionResult> DeleteExpense(Guid groupId, Guid expenseId)
         {
@@ -86,9 +80,9 @@ namespace BudgetSplitter.App.Controllers
         public async Task<IActionResult> AddExpenseParticipants(
             Guid groupId,
             Guid expenseId,
-            [FromBody] IEnumerable<ExpenseShareCreateDto> shares)
+            [FromBody] ExpenseShareCreateDto share)
         {
-            await _expenseService.AddExpenseParticipantsAsync(groupId, expenseId, shares);
+            await _expenseService.AddExpenseParticipantsAsync(groupId, expenseId, share);
             return Ok();
         }
 

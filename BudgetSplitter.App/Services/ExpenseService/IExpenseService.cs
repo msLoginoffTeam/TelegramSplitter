@@ -32,7 +32,7 @@ public interface IExpenseService
     Task AddExpenseParticipantsAsync(
         Guid groupId, 
         Guid expenseId, 
-        IEnumerable<ExpenseShareCreateDto> shares);
+        ExpenseShareCreateDto share);
 
     Task UpdateExpenseParticipantAsync(
         Guid groupId, 
