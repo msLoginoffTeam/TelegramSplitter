@@ -1,3 +1,4 @@
+using BudgetSplitter.App.Services.ExpenseService;
 using BudgetSplitter.App.Services.GroupService;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
@@ -16,6 +17,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IGroupService, GroupService>();
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
 
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseNpgsql(conn, npgsql =>
