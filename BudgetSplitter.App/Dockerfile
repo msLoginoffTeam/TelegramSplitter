@@ -13,6 +13,9 @@ WORKDIR "/src/BudgetSplitter.App"
 RUN dotnet build "BudgetSplitter.App.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+
+WORKDIR "/src/BudgetSplitter.App"
 RUN dotnet publish \
     "BudgetSplitter.App.csproj" \
     --configuration $BUILD_CONFIGURATION \
