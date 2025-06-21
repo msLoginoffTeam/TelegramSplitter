@@ -18,6 +18,8 @@ public class ExpenseShare
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal Amount { get; set; }
+    
+    public ICollection<Payment>? Payments { get; set; }
 
     public bool IsPaid { get; set; } = false;
 }

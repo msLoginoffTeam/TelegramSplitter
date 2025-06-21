@@ -117,6 +117,12 @@ namespace Persistence.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<Guid?>("ExpenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ExpenseShareId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("FromUserId")
                         .HasColumnType("uuid");
 
@@ -130,6 +136,10 @@ namespace Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExpenseId");
+
+                    b.HasIndex("ExpenseShareId");
 
                     b.HasIndex("FromUserId");
 
@@ -229,6 +239,14 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("Persistence.Payment", b =>
                 {
+                    b.HasOne("Persistence.Expense", "Expense")
+                        .WithMany()
+                        .HasForeignKey("ExpenseId");
+
+                    b.HasOne("Persistence.ExpenseShare", null)
+                        .WithMany("Payments")
+                        .HasForeignKey("ExpenseShareId");
+
                     b.HasOne("Persistence.User", "FromUser")
                         .WithMany("PaymentsSent")
                         .HasForeignKey("FromUserId")
@@ -246,6 +264,8 @@ namespace Persistence.Migrations
                         .HasForeignKey("ToUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Expense");
 
                     b.Navigation("FromUser");
 
@@ -276,6 +296,11 @@ namespace Persistence.Migrations
             modelBuilder.Entity("Persistence.Expense", b =>
                 {
                     b.Navigation("Shares");
+                });
+
+            modelBuilder.Entity("Persistence.ExpenseShare", b =>
+                {
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("Persistence.Group", b =>
