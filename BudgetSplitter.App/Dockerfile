@@ -5,6 +5,12 @@ EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
+
+RUN dotnet tool install --global dotnet-ef --version 9.0.* \
+ && ln -s /root/.dotnet/tools/dotnet-ef /usr/local/bin/dotnet-ef
+
+ENV PATH="$PATH:/root/.dotnet/tools"
+
 WORKDIR /src
 COPY ["BudgetSplitter.App/BudgetSplitter.App.csproj", "BudgetSplitter.App/"]
 RUN dotnet restore "BudgetSplitter.App/BudgetSplitter.App.csproj"
