@@ -10,6 +10,8 @@ public class Group
     [Required, MaxLength(200)]
     public string Title { get; set; } = null!;
     public long? TelegramChatId { get; set; }
+    
+    public User CreatedBy { get; set; }
 
     public ICollection<UserGroup> UserGroups { get; set; } = new List<UserGroup>();
     public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
