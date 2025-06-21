@@ -1,3 +1,4 @@
+using BudgetSplitter.App.Services.GroupService;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using Microsoft.AspNetCore.Mvc;
@@ -8,24 +9,27 @@ namespace BudgetSplitter.App.Controllers
     [Route("api/groups")]
     public class GroupsController : ControllerBase
     {
-        public GroupsController(/*IGroupService svc*/) { /*…*/ }
+        private readonly IGroupService _groupService;
+        public GroupsController(IGroupService groupService) => _groupService = groupService;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<GroupOverviewResponseDto>>> GetMyGroups()
+        public async Task<ActionResult<IEnumerable<GroupOverviewResponseDto>>> GetMyGroups(long userTelegramId)
         {
-            throw new NotImplementedException();
+            var groups = await _groupService.GetMyGroupsAsync(userTelegramId);
+            return Ok(groups);
         }
 
         [HttpGet("{groupId:guid}")]
         public async Task<ActionResult<GroupResponseDto>> GetGroup(Guid groupId)
         {
-            throw new NotImplementedException();
+            var group = await _groupService.GetGroupAsync(groupId);
+            return Ok(group);
         }
 
         [HttpPost]
         public async Task<ActionResult<GroupResponseDto>> CreateGroup([FromBody] CreateGroupRequestDto dto)
         {
-            throw new NotImplementedException();
+            return Ok(await _groupService.CreateGroupAsync(dto));
         }
 
         [HttpPut("{groupId:guid}")]
@@ -33,25 +37,29 @@ namespace BudgetSplitter.App.Controllers
             Guid groupId,
             [FromBody] UpdateGroupRequestDto dto)
         {
-            throw new NotImplementedException();
+            await _groupService.UpdateGroupAsync(groupId, dto);
+            return Ok();
         }
 
         [HttpDelete("{groupId:guid}")]
         public async Task<IActionResult> DeleteGroup(Guid groupId)
         {
-            throw new NotImplementedException();
+            await _groupService.DeleteGroupAsync(groupId);
+            return Ok();
         }
 
         [HttpPost("{groupId:guid}/users")]
         public async Task<IActionResult> AddUser(Guid groupId, [FromBody] AddGroupUserRequestDto dto)
         {
-            throw new NotImplementedException();
+            await _groupService.AddUserAsync(groupId, dto);
+            return Ok();
         }
 
         [HttpDelete("{groupId:guid}/users/{userId:guid}")]
         public async Task<IActionResult> RemoveUser(Guid groupId, Guid userId)
         {
-            throw new NotImplementedException();
+            await _groupService.RemoveUserAsync(groupId, userId);
+            return Ok();
         }
     }
 }
