@@ -1,6 +1,7 @@
 using BudgetSplitter.App.Services.ExpenseService;
 using BudgetSplitter.App.Services.GroupService;
 using BudgetSplitter.App.Services.PaymentService;
+using BudgetSplitter.App.Services.UserService;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 
@@ -20,6 +21,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseNpgsql(conn, npgsql =>
