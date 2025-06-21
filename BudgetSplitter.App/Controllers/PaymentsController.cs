@@ -1,3 +1,4 @@
+using BudgetSplitter.App.Services.PaymentService;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using Microsoft.AspNetCore.Mvc;
@@ -8,12 +9,14 @@ namespace BudgetSplitter.App.Controllers
     [Route("api/groups/{groupId:guid}/payments")]
     public class PaymentsController : ControllerBase
     {
-        public PaymentsController(/*IPaymentService svc*/) { /*…*/ }
+        private readonly IPaymentService _paymentService;
+        public PaymentsController(IPaymentService paymentService) => _paymentService = paymentService;
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PaymentResponseDto>>> GetPayments(Guid groupId)
         {
-            throw new NotImplementedException();
+            var payments = await _paymentService.GetGroupPaymentsAsync(groupId);
+            return Ok(payments);
         }
 
         [HttpPost("expense")]
@@ -21,7 +24,8 @@ namespace BudgetSplitter.App.Controllers
             Guid groupId,
             [FromBody] CreatePaymentForExpenseRequestDto dto)
         {
-            throw new NotImplementedException();
+            var result = await _paymentService.CreatePaymentForExpenseAsync(groupId, dto);
+            return Ok(result);
         }
 
         [HttpPost("direct")]
@@ -29,7 +33,8 @@ namespace BudgetSplitter.App.Controllers
             Guid groupId,
             [FromBody] CreateDirectPaymentRequestDto dto)
         {
-            throw new NotImplementedException();
+            var result = await _paymentService.CreateDirectPaymentAsync(groupId, dto);
+            return Ok(result);
         }
 
         [HttpPut("{paymentId:guid}")]
@@ -38,13 +43,15 @@ namespace BudgetSplitter.App.Controllers
             Guid paymentId,
             [FromBody] UpdatePaymentRequestDto dto)
         {
-            throw new NotImplementedException();
+            await _paymentService.UpdatePaymentAsync(groupId, paymentId, dto);
+            return Ok();
         }
 
         [HttpDelete("{paymentId:guid}")]
         public async Task<IActionResult> DeletePayment(Guid groupId, Guid paymentId)
         {
-            throw new NotImplementedException();
+            await _paymentService.DeletePaymentAsync(groupId, paymentId);
+            return Ok();
         }
     }
 }
