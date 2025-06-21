@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BudgetSplitter.App.Controllers;
 
+/// <summary>
+/// Controller for user management.
+/// </summary>
 [ApiController]
 [Route("api/users")]
 public class UsersController : ControllerBase
@@ -13,7 +16,7 @@ public class UsersController : ControllerBase
     public UsersController(IUserService userService) => _userService = userService;
 
     /// <summary>
-    /// Получить всех пользователей
+    /// Retrieves an overview of all users in the system.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<UserOverviewResponseDto>>> GetAllUsers()
@@ -23,8 +26,9 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Получить пользователя по Id
+    /// Retrieves detailed information for a specific user.
     /// </summary>
+    /// <param name="userId">ID of the user.</param>
     [HttpGet("{userId:guid}")]
     public async Task<ActionResult<UserResponseDto>> GetUser(Guid userId)
     {
@@ -33,8 +37,10 @@ public class UsersController : ControllerBase
     }
     
     /// <summary>
-    /// Создать нового пользователя
+    /// Creates a new user record.
     /// </summary>
+    /// <param name="userCreateRequestDto">User creation data.</param>
+    /// <returns>Newly created user’s ID.</returns>
     [HttpPost]
     public async Task<ActionResult<Guid>> CreateUser([FromBody] UserCreateRequestDto userCreateRequestDto)
     {
@@ -43,8 +49,10 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Обновить данные пользователя
+    /// Updates user details.
     /// </summary>
+    /// <param name="userId">ID of the user.</param>
+    /// <param name="dto">Updated user data.</param>
     [HttpPut("{userId:guid}")]
     public async Task<IActionResult> UpdateUser(
         Guid userId,
