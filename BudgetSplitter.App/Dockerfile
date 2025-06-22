@@ -5,22 +5,30 @@ EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
+
+RUN dotnet tool install --global dotnet-ef --version 9.0.* \
+ && ln -s /root/.dotnet/tools/dotnet-ef /usr/local/bin/dotnet-ef
+ENV PATH="$PATH:/root/.dotnet/tools"
+
 WORKDIR /src
+
+COPY ["BudgetSplitterWebApi.sln", "./"]
 COPY ["BudgetSplitter.App/BudgetSplitter.App.csproj", "BudgetSplitter.App/"]
-RUN dotnet restore "BudgetSplitter.App/BudgetSplitter.App.csproj"
+COPY ["BudgetSplitter.Common/BudgetSplitter.Common.csproj", "BudgetSplitter.Common/"]
+COPY ["BudgetSplitter.Persistence/BudgetSplitter.Persistence.csproj", "BudgetSplitter.Persistence/"]
+
+RUN dotnet restore "./BudgetSplitterWebApi.sln"
+
 COPY . .
+
 WORKDIR "/src/BudgetSplitter.App"
 RUN dotnet build "BudgetSplitter.App.csproj" -c $BUILD_CONFIGURATION -o /app/build
-
-FROM build AS publish
-RUN dotnet publish \
-    "BudgetSplitter.App.csproj" \
-    --configuration $BUILD_CONFIGURATION \
-    --output /app/publish \
-    --no-restore \
+RUN dotnet publish "BudgetSplitter.App.csproj" \
+    -c $BUILD_CONFIGURATION \
+    -o /app/publish \
     /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "BudgetSplitter.App.dll"]
