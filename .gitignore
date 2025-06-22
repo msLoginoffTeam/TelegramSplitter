@@ -42,9 +42,9 @@ Thumbs.db
 .paket/
 paket-files/
 
-# ===== EF Migrations (если хочешь включать/отключать) =====
-# оставь миграции, но можно игнорить миграции bin/obj
-**/Migrations/**/*.Designer.cs
+# ===== EF Migrations =====
+bin/**/Migrations/**/*.Designer.cs
+obj/**/Migrations/**/*.Designer.cs
 
 # ===== Optional: Rider caches =====
 .idea/**/workspace.xml
