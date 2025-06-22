@@ -24,13 +24,13 @@ public class UserService : IUserService
         });
     }
 
-    public async Task<UserResponseDto> GetUserAsync(Guid userId)
+    public async Task<UserResponseDto> GetUserAsync(long userTelegramId)
     {
         var u = await _db.Users
                     .Include(user => user.UserGroups)
                     .ThenInclude(userGroup => userGroup.Group).ThenInclude(group => group.UserGroups)
-                    .FirstOrDefaultAsync(x => x.Id == userId)
-                ?? throw new KeyNotFoundException($"User {userId} not found");
+                    .FirstOrDefaultAsync(x => x.TelegramId == userTelegramId)
+                ?? throw new KeyNotFoundException($"User {userTelegramId} not found");
 
         return new UserResponseDto
         {
@@ -64,10 +64,10 @@ public class UserService : IUserService
         return user.Id;
     }
 
-    public async Task UpdateUserAsync(Guid userId, UpdateUserRequestDto dto)
+    public async Task UpdateUserAsync(long userTelegramId, UpdateUserRequestDto dto)
     {
-        var user = await _db.Users.FindAsync(userId)
-                   ?? throw new KeyNotFoundException($"User {userId} not found");
+        var user = _db.Users.FirstOrDefault(x => x.TelegramId == userTelegramId)
+                   ?? throw new KeyNotFoundException($"User {userTelegramId} not found");
 
         if (!string.IsNullOrWhiteSpace(dto.DisplayName))
             user.DisplayName = dto.DisplayName;

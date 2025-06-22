@@ -136,10 +136,10 @@ public class GroupService : IGroupService
         await _db.SaveChangesAsync();
     }
 
-    public async Task RemoveUserAsync(Guid groupId, Guid userId)
+    public async Task RemoveUserAsync(Guid groupId, long userTelegramId)
     {
         var ug = await _db.UserGroups
-            .FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId);
+            .FirstOrDefaultAsync(x => x.GroupId == groupId && x.User.TelegramId == userTelegramId);
         if (ug != null)
         {
             _db.UserGroups.Remove(ug);
@@ -147,7 +147,7 @@ public class GroupService : IGroupService
         }
         else
         {
-            throw new ArgumentException($"User with id {userId} does not exist in group {groupId}");
+            throw new ArgumentException($"User with id {userTelegramId} does not exist in group {groupId}");
         }
     }
 }

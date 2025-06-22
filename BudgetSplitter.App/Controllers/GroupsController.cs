@@ -91,11 +91,11 @@ namespace BudgetSplitter.App.Controllers
         /// Removes a user from the group.
         /// </summary>
         /// <param name="groupId">ID of the group.</param>
-        /// <param name="userId">ID of the user to remove.</param>
+        /// <param name="userTelegramId">ID of the user to remove.</param>
         [HttpDelete("{groupId:guid}/users/{userId:guid}")]
-        public async Task<IActionResult> RemoveUser(Guid groupId, Guid userId)
+        public async Task<IActionResult> RemoveUser(Guid groupId, long userTelegramId)
         {
-            await _groupService.RemoveUserAsync(groupId, userId);
+            await _groupService.RemoveUserAsync(groupId, userTelegramId);
             return Ok();
         }
     }

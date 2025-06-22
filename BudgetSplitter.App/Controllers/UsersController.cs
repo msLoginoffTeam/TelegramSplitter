@@ -28,11 +28,11 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Retrieves detailed information for a specific user.
     /// </summary>
-    /// <param name="userId">ID of the user.</param>
+    /// <param name="userTelegramId"> tg ID of the user.</param>
     [HttpGet("{userId:guid}")]
-    public async Task<ActionResult<UserResponseDto>> GetUser(Guid userId)
+    public async Task<ActionResult<UserResponseDto>> GetUser(long userTelegramId)
     {
-        var user = await _userService.GetUserAsync(userId);
+        var user = await _userService.GetUserAsync(userTelegramId);
         return Ok(user);
     }
     
@@ -51,14 +51,14 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Updates user details.
     /// </summary>
-    /// <param name="userId">ID of the user.</param>
+    /// <param name="userTelegramId">ID of the user.</param>
     /// <param name="dto">Updated user data.</param>
     [HttpPut("{userId:guid}")]
     public async Task<IActionResult> UpdateUser(
-        Guid userId,
+        long userTelegramId,
         [FromBody] UpdateUserRequestDto dto)
     {
-        await _userService.UpdateUserAsync(userId, dto);
+        await _userService.UpdateUserAsync(userTelegramId, dto);
         return NoContent();
     }
 }
