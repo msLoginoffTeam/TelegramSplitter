@@ -18,7 +18,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  api:
+  telegram-splitter-app:
     build:
       context: .
       dockerfile: BudgetSplitter.App/Dockerfile
