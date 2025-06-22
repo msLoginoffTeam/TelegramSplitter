@@ -1,6 +1,10 @@
 #!/bin/bash
 
-docker pull brawleryura1/telegram-splitter-app:latest
-docker stop telegram-splitter-app || true
-docker rm telegram-splitter-app || true
- docker-compose up -d --build telegram-splitter-app
+set -e
+
+docker-compose stop telegram-splitter-app || true
+docker-compose rm -f telegram-splitter-app || true
+
+docker-compose pull telegram-splitter-app
+docker-compose up -d --no-deps --force-recreate telegram-splitter-app
+
