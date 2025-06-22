@@ -19,7 +19,7 @@ services:
       - db_data:/var/lib/postgresql/data
 
   telegram-splitter-app:
-    image: brawleryura1/telegram-splitter-app:${APP_VERSION}
+    image: brawleryura1/telegram-splitter-app:${APP_VERSION:-latest}
     build:
       context: .
       dockerfile: BudgetSplitter.App/Dockerfile
