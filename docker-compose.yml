@@ -21,6 +21,7 @@ services:
       - my-network
 
   telegram-splitter-app:
+    container_name: telegram-splitter-app
     image: brawleryura1/telegram-splitter-app:${APP_VERSION:-latest}
     build:
       context: .
