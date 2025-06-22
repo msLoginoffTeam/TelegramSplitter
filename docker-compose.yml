@@ -17,6 +17,8 @@ services:
       retries: 5
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - my-network
 
   telegram-splitter-app:
     image: brawleryura1/telegram-splitter-app:${APP_VERSION:-latest}
@@ -38,6 +40,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    external: true
 
 volumes:
   db_data:
