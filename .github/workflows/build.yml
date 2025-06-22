@@ -32,6 +32,9 @@ jobs:
           CI_REGISTRY_IMAGE: ${{ secrets.CI_REGISTRY_IMAGE }}
         run: docker-compose build telegram-splitter-app
 
+      - name: List images
+        run: docker images
+
       - name: Tag Docker images
         run: |
           docker tag ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:$APP_VERSION ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:latest
