@@ -17,9 +17,7 @@ public class GroupService : IGroupService
 
         if (user == null)
         {
-            user = new User { TelegramId = telegramId };
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
+            throw new KeyNotFoundException($"User with telegramId {telegramId} not found");
         }
 
         var groups = await _db.Groups
@@ -68,9 +66,7 @@ public class GroupService : IGroupService
 
         if (user == null)
         {
-            user = new User { TelegramId = dto.CreatedByTelegramId };
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
+            throw new KeyNotFoundException($"User with telegramId {dto.CreatedByTelegramId} not found");
         }
         
         var group = new Group
@@ -99,7 +95,6 @@ public class GroupService : IGroupService
 
     public async Task DeleteGroupAsync(Guid groupId)
     {
-        // soft delete? пока — жёсткое
         var group = await _db.Groups.FindAsync(groupId);
         if (group == null) return;
         _db.Groups.Remove(group);
@@ -111,13 +106,10 @@ public class GroupService : IGroupService
         var group = await _db.Groups.FindAsync(groupId)
                     ?? throw new KeyNotFoundException($"Group {groupId} not found");
 
-        // находим или создаём пользователя
         var user = await _db.Users.FirstOrDefaultAsync(u => u.TelegramId == dto.TelegramId);
         if (user == null)
         {
-            user = new User { TelegramId = dto.TelegramId };
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
+            throw new KeyNotFoundException($"User with telegramId {dto.TelegramId} not found");
         }
 
         if (!await _db.UserGroups.AnyAsync(ug => ug.GroupId == group.Id && ug.UserId == user.Id))
