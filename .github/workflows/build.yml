@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: 'Tag version for the release'
+        required: true
+
+env:
+  APP_VERSION: ${{ github.event.inputs.app_version }}
+  POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+  POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Prepare docker
+        uses: ./.github/actions/prepare-docker
+        with:
+          password: ${{ secrets.CI_REGISTRY_PASSWORD }}
+          username: ${{ secrets.CI_REGISTRY_USER }}
+
+      - name: Build Docker images
+        env:
+          CI_REGISTRY_IMAGE: ${{ secrets.CI_REGISTRY_IMAGE }}
+        run: docker-compose build telegram-splitter-app
+
+      - name: List images
+        run: docker images
+
+      - name: Tag Docker images
+        run: |
+          docker tag ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:$APP_VERSION ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:latest
+
+      - name: Push Docker images
+        run: |
+          docker push -a ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app
+
+      - name: Display build completion date
+        run: echo "Build completed on $(date)"
+
+  release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.APP_VERSION }}
+          release_name: Release ${{ env.APP_VERSION }}
+          body: "New release of the application"
+          draft: false
+          prerelease: false
+
+  deploy:
+    runs-on: self-hosted
+    needs: release
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      
+      - name: Make deploy.sh executable
+        run: chmod +x deploy.sh
+
+      - name: Deploy Docker Image
+        run: ./deploy.sh
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
