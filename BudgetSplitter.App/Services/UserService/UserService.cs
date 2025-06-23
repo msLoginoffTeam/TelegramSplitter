@@ -1,5 +1,6 @@
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using BudgetSplitter.Common.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 
@@ -30,7 +31,7 @@ public class UserService : IUserService
                     .Include(user => user.UserGroups)
                     .ThenInclude(userGroup => userGroup.Group).ThenInclude(group => group.UserGroups)
                     .FirstOrDefaultAsync(x => x.Id == userId)
-                ?? throw new KeyNotFoundException($"User {userId} not found");
+                ?? throw new NotFoundException($"User {userId} not found");
 
         return new UserResponseDto
         {
@@ -50,7 +51,7 @@ public class UserService : IUserService
     {
         if (telegramId == null && displayName == null)
         {
-            throw new ArgumentException("Empty params");
+            throw new BadRequestException("Empty params");
         }
 
         var user = await _db.Users
@@ -59,7 +60,7 @@ public class UserService : IUserService
                        .FirstOrDefaultAsync(x =>
                            (displayName != null && x.DisplayName == displayName) ||
                            telegramId != null && x.TelegramId == telegramId) ??
-                   throw new KeyNotFoundException($"User {displayName} not found");
+                   throw new NotFoundException($"User {displayName} not found");
 
         return new UserResponseDto
         {
@@ -80,7 +81,7 @@ public class UserService : IUserService
         var exists = await _db.Users
             .AnyAsync(u => u.TelegramId == dto.TelegramId);
         if (exists)
-            throw new InvalidOperationException(
+            throw new BadRequestException(
                 $"User with TelegramId {dto.TelegramId} already exists");
 
         var user = new User
@@ -96,7 +97,7 @@ public class UserService : IUserService
     public async Task UpdateUserAsync(Guid userId, UpdateUserRequestDto dto)
     {
         var user = await _db.Users.FindAsync(userId)
-                   ?? throw new KeyNotFoundException($"User {userId} not found");
+                   ?? throw new NotFoundException($"User {userId} not found");
 
         if (!string.IsNullOrWhiteSpace(dto.DisplayName))
             user.DisplayName = dto.DisplayName;

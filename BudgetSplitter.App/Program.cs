@@ -1,4 +1,5 @@
 using System.Reflection;
+using BudgetSplitter.App.Middlewares;
 using BudgetSplitter.App.Services.ExpenseService;
 using BudgetSplitter.App.Services.GroupService;
 using BudgetSplitter.App.Services.PaymentService;
@@ -14,7 +15,7 @@ builder.Configuration
     .AddEnvironmentVariables();
 
 var conn = builder.Configuration.GetConnectionString("DefaultConnection")
-           ?? throw new InvalidOperationException("Connection string not found.");
+           ?? throw new SystemException("Connection string not found.");
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -74,6 +75,8 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseSwagger();
 app.UseSwaggerUI();

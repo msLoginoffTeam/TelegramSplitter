@@ -1,5 +1,6 @@
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using BudgetSplitter.Common.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 
@@ -17,7 +18,7 @@ public class GroupService : IGroupService
 
         if (user == null)
         {
-            throw new KeyNotFoundException($"User with telegramId {telegramId} not found");
+            throw new NotFoundException($"User with telegramId {telegramId} not found");
         }
 
         var groups = await _db.Groups
@@ -42,7 +43,7 @@ public class GroupService : IGroupService
             .FirstOrDefaultAsync(g => g.Id == groupId);
 
         if (group == null)
-            throw new KeyNotFoundException($"Group {groupId} not found");
+            throw new NotFoundException($"Group {groupId} not found");
 
         return new GroupResponseDto
         {
@@ -66,7 +67,7 @@ public class GroupService : IGroupService
 
         if (user == null)
         {
-            throw new KeyNotFoundException($"User with telegramId {dto.CreatedByTelegramId} not found");
+            throw new NotFoundException($"User with telegramId {dto.CreatedByTelegramId} not found");
         }
         
         var group = new Group
@@ -77,9 +78,7 @@ public class GroupService : IGroupService
         };
         _db.Groups.Add(group);
         await _db.SaveChangesAsync();
-
-        // добавляем создателя как участника, если передан TelegramChatId
-        // (либо этот шаг можно делать отдельным вызовом AddUserAsync)
+        
         return await GetGroupAsync(group.Id);
     }
 
@@ -87,7 +86,7 @@ public class GroupService : IGroupService
     {
         var group = await _db.Groups.FindAsync(groupId);
         if (group == null)
-            throw new KeyNotFoundException($"Group {groupId} not found");
+            throw new NotFoundException($"Group {groupId} not found");
 
         group.Title = dto.Title;
         await _db.SaveChangesAsync();
@@ -104,12 +103,12 @@ public class GroupService : IGroupService
     public async Task AddUserAsync(Guid groupId, AddGroupUserRequestDto dto)
     {
         var group = await _db.Groups.FindAsync(groupId)
-                    ?? throw new KeyNotFoundException($"Group {groupId} not found");
+                    ?? throw new NotFoundException($"Group {groupId} not found");
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.TelegramId == dto.TelegramId);
         if (user == null)
         {
-            throw new KeyNotFoundException($"User with telegramId {dto.TelegramId} not found");
+            throw new NotFoundException($"User with telegramId {dto.TelegramId} not found");
         }
 
         if (!await _db.UserGroups.AnyAsync(ug => ug.GroupId == group.Id && ug.UserId == user.Id))
@@ -122,7 +121,7 @@ public class GroupService : IGroupService
         }
         else
         {
-            throw new ArgumentException($"User with id {dto.TelegramId} already exists in group {groupId}");
+            throw new BadRequestException($"User with id {dto.TelegramId} already exists in group {groupId}");
         }
 
         await _db.SaveChangesAsync();
@@ -139,7 +138,7 @@ public class GroupService : IGroupService
         }
         else
         {
-            throw new ArgumentException($"User with id {userId} does not exist in group {groupId}");
+            throw new BadRequestException($"User with id {userId} does not exist in group {groupId}");
         }
     }
 }

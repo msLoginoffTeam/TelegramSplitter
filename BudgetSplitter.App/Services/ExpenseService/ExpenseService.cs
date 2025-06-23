@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using BudgetSplitter.Common.Dtos;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using BudgetSplitter.Common.Exceptions;
 using Persistence;
 
 namespace BudgetSplitter.App.Services.ExpenseService;
@@ -41,7 +42,7 @@ public class ExpenseService : IExpenseService
             .Include(x => x.Shares)
             .AsNoTracking()
             .FirstOrDefaultAsync();
-        if (expense == null) throw new KeyNotFoundException($"Expense {expenseId} not found in group {groupId}");
+        if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
 
         return new ExpenseResponseDto
         {
@@ -77,7 +78,7 @@ public class ExpenseService : IExpenseService
         var shares = dto.Shares;
         var sumOthers = shares.Sum(s => s.Amount);
         if (sumOthers > expense.TotalAmount)
-            throw new InvalidOperationException(
+            throw new BadRequestException(
                 $"Сумма долей ({sumOthers}) превышает общую сумму {expense.TotalAmount}");
 
         foreach (var s in shares)
@@ -109,7 +110,7 @@ public class ExpenseService : IExpenseService
     {
         var expense = await _db.Expenses
             .FirstOrDefaultAsync(e => e.GroupId == groupId && e.Id == expenseId);
-        if (expense == null) throw new KeyNotFoundException($"Expense {expenseId} not found in group {groupId}");
+        if (expense == null) throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
 
         expense.Title = dto.Title ?? expense.Title;
         expense.TotalAmount = dto.TotalAmount ?? expense.TotalAmount;
@@ -131,7 +132,7 @@ public class ExpenseService : IExpenseService
     {
         var expense = await _db.Expenses
             .FirstOrDefaultAsync(e => e.GroupId == groupId && e.Id == expenseId);
-        if (expense == null) throw new KeyNotFoundException($"Expense {expenseId} not found in group {groupId}");
+        if (expense == null) throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
         expense.IsDraft = false;
         await _db.SaveChangesAsync();
     }
@@ -154,14 +155,14 @@ public class ExpenseService : IExpenseService
         ExpenseShareCreateDto share)
     {
         var expense = await _db.Expenses.FindAsync(expenseId)
-                      ?? throw new KeyNotFoundException($"Expense {expenseId} not found");
+                      ?? throw new NotFoundException($"Expense {expenseId} not found");
         if (expense.GroupId != groupId)
-            throw new InvalidOperationException("Wrong group");
+            throw new BadRequestException("Wrong group");
 
         var exists = await _db.ExpenseShares
             .AnyAsync(s => s.ExpenseId == expenseId && s.UserId == share.UserId);
         if (exists)
-            throw new InvalidOperationException($"User {share.UserId} is already a participant of expense {expenseId}");
+            throw new BadRequestException($"User {share.UserId} is already a participant of expense {expenseId}");
 
         var sumExisting = await _db.ExpenseShares
             .Where(s => s.ExpenseId == expenseId && s.UserId != expense.CreatedById)
@@ -169,7 +170,7 @@ public class ExpenseService : IExpenseService
 
         var totalOthers = sumExisting + share.Amount;
         if (totalOthers > expense.TotalAmount)
-            throw new InvalidOperationException(
+            throw new BadRequestException(
                 $"Сумма долей ({totalOthers}) превышает общую сумму {expense.TotalAmount}");
 
         _db.ExpenseShares.Add(new ExpenseShare
@@ -208,10 +209,10 @@ public class ExpenseService : IExpenseService
         var share = await _db.ExpenseShares
                         .Include(x => x.Expense)
                         .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == shareDto.UserId)
-                    ?? throw new KeyNotFoundException($"Share for user {shareDto.UserId} not found");
+                    ?? throw new NotFoundException($"Share for user {shareDto.UserId} not found");
 
         if (share.Expense.GroupId != groupId)
-            throw new InvalidOperationException("Wrong group");
+            throw new BadRequestException("Wrong group");
 
         var expense = share.Expense;
         var sumOthers = await _db.ExpenseShares
@@ -222,7 +223,7 @@ public class ExpenseService : IExpenseService
         share.Amount = shareDto.Amount;
 
         if (sumOthers > expense.TotalAmount)
-            throw new InvalidOperationException(
+            throw new BadRequestException(
                 $"Сумма долей ({sumOthers}) превышает общую сумму {expense.TotalAmount}");
 
         var remainder = expense.TotalAmount - sumOthers;

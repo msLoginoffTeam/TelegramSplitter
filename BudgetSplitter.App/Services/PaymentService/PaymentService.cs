@@ -1,5 +1,6 @@
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using BudgetSplitter.Common.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 
@@ -53,10 +54,10 @@ namespace BudgetSplitter.App.Services.PaymentService;
             var expense = await _db.Expenses
                 .Include(e => e.Shares)
                 .FirstOrDefaultAsync(e => e.Id == dto.ExpenseId && e.GroupId == groupId)
-                ?? throw new KeyNotFoundException($"Expense {dto.ExpenseId} not found in group {groupId}");
+                ?? throw new NotFoundException($"Expense {dto.ExpenseId} not found in group {groupId}");
         
             var share = expense.Shares.FirstOrDefault(s => s.UserId == dto.FromUserId)
-                        ?? throw new InvalidOperationException(
+                        ?? throw new BadRequestException(
                               $"User {dto.FromUserId} has no share in expense {dto.ExpenseId}");
         
             var paidSum = await _db.Payments
@@ -64,7 +65,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 .SumAsync(p => p.Amount);
         
             if (paidSum + dto.Amount > share.Amount)
-                throw new InvalidOperationException(
+                throw new BadRequestException(
                     $"Payment ({dto.Amount}) exceeds remaining debt ({share.Amount - paidSum})");
 
             if (paidSum + dto.Amount == share.Amount)
@@ -105,7 +106,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 .Select(ug => ug.UserId)
                 .ToListAsync();
             if (!members.Contains(dto.FromUserId) || !members.Contains(dto.ToUserId))
-                throw new InvalidOperationException("One or both users are not in the group");
+                throw new BadRequestException("One or both users are not in the group");
 
             var payment = new Payment
             {
@@ -138,13 +139,13 @@ namespace BudgetSplitter.App.Services.PaymentService;
              var payment = await _db.Payments
                  .Include(p => p.Expense)
                  .FirstOrDefaultAsync(p => p.Id == paymentId && p.GroupId == groupId)
-                 ?? throw new KeyNotFoundException($"Payment {paymentId} not found");
+                 ?? throw new NotFoundException($"Payment {paymentId} not found");
         
              if (payment.Expense != null)
              {
                  var share = await _db.ExpenseShares
                      .FirstOrDefaultAsync(s => s.ExpenseId == payment.Expense.Id && s.UserId == payment.FromUserId)
-                     ?? throw new InvalidOperationException("Share not found");
+                     ?? throw new BadRequestException("Share not found");
         
                  var paidSum = await _db.Payments
                      .Where(p => p.Expense != null && p.Expense.Id == payment.Expense.Id && p.FromUserId == payment.FromUserId)
@@ -152,7 +153,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
         
                  var newSum = paidSum - payment.Amount + dto.Amount;
                  if (newSum > share.Amount)
-                     throw new InvalidOperationException(
+                     throw new BadRequestException(
                          $"Updated payment ({dto.Amount}) exceeds remaining debt ({share.Amount - (paidSum - payment.Amount)})");
                  
                  if (newSum == share.Amount)
