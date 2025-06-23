@@ -12,5 +12,5 @@ public interface IGroupService
     Task DeleteGroupAsync(Guid groupId);
 
     Task AddUserAsync(Guid groupId, AddGroupUserRequestDto dto);
-    Task RemoveUserAsync(Guid groupId, long userTelegramId);
+    Task RemoveUserAsync(Guid groupId, Guid userId);
 }

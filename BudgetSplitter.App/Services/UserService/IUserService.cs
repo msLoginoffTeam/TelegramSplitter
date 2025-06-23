@@ -6,8 +6,8 @@ namespace BudgetSplitter.App.Services.UserService
     public interface IUserService
     {
         Task<IEnumerable<UserOverviewResponseDto>> GetAllUsersAsync();
-        Task<UserResponseDto> GetUserAsync(long userTelegramId);
+        Task<UserResponseDto> GetUserAsync(Guid userId);
         Task<Guid> CreateUserAsync(UserCreateRequestDto dto);
-        Task UpdateUserAsync(long userTelegramId, UpdateUserRequestDto dto);
+        Task UpdateUserAsync(Guid userId, UpdateUserRequestDto dto);
     }
 }
