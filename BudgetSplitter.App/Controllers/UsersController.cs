@@ -35,6 +35,18 @@ public class UsersController : ControllerBase
         var user = await _userService.GetUserAsync(userId);
         return Ok(user);
     }
+
+    /// <summary>
+    /// Retrieves detailed information for a specific user by nickname or userTelegramId.
+    /// </summary>
+    /// telegram <param name="nickname"> of the user.</param>
+    /// <param name="userTelegramId"></param>
+    [HttpGet("find")]
+    public async Task<ActionResult<UserResponseDto>> GetUserByNickname(string? nickname = null, long? userTelegramId = null)
+    {
+        var user = await _userService.GetUserByNicknameAsync(nickname, userTelegramId);
+        return Ok(user);
+    }
     
     /// <summary>
     /// Creates a new user record.

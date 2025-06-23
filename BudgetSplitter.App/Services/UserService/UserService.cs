@@ -46,6 +46,35 @@ public class UserService : IUserService
         };
     }
 
+    public async Task<UserResponseDto> GetUserByNicknameAsync(string? displayName = null, long? telegramId = null)
+    {
+        if (telegramId == null && displayName == null)
+        {
+            throw new ArgumentException("Empty params");
+        }
+
+        var user = await _db.Users
+                       .Include(user => user.UserGroups)
+                       .ThenInclude(userGroup => userGroup.Group)
+                       .FirstOrDefaultAsync(x =>
+                           (displayName != null && x.DisplayName == displayName) ||
+                           telegramId != null && x.TelegramId == telegramId) ??
+                   throw new KeyNotFoundException($"User {displayName} not found");
+
+        return new UserResponseDto
+        {
+            Id = user.Id,
+            TelegramId = user.TelegramId,
+            DisplayName = user.DisplayName,
+            Groups = user.UserGroups.Select(g => new GroupResponseDto
+            {
+                Id = g.GroupId,
+                TelegramChatId = g.Group.TelegramChatId,
+                Title = g.Group.Title
+            })
+        };
+    }
+
     public async Task<Guid> CreateUserAsync(UserCreateRequestDto dto)
     {
         var exists = await _db.Users
