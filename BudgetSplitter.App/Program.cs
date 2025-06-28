@@ -1,5 +1,6 @@
 using System.Reflection;
 using BudgetSplitter.App.Middlewares;
+using BudgetSplitter.App.Services.BalanceService;
 using BudgetSplitter.App.Services.ExpenseService;
 using BudgetSplitter.App.Services.GroupService;
 using BudgetSplitter.App.Services.PaymentService;
@@ -57,6 +58,7 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IBalanceService, BalanceService>();
 
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseNpgsql(conn, npgsql =>

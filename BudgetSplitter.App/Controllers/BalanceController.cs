@@ -1,3 +1,4 @@
+using BudgetSplitter.App.Services.BalanceService;
 using BudgetSplitter.Common.Dtos.Response;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,7 +8,8 @@ namespace BudgetSplitter.App.Controllers
     [Route("api/groups/{groupId:guid}")]
     public class BalanceController : ControllerBase
     {
-        public BalanceController(/*IBalanceService svc*/) { /*…*/ }
+        private readonly IBalanceService _balances;
+        public BalanceController(IBalanceService balances) => _balances = balances;
 
         /// <summary>
         /// Returns the current balance summary for the specified group.
@@ -17,7 +19,7 @@ namespace BudgetSplitter.App.Controllers
         [HttpGet("balance")]
         public async Task<ActionResult<BalanceResponseDto>> GetBalance(Guid groupId)
         {
-            throw new NotImplementedException();
+            return Ok(await _balances.GetBalancesAsync(groupId));
         }
 
         /// <summary>
@@ -34,7 +36,7 @@ namespace BudgetSplitter.App.Controllers
             Guid groupId,
             [FromQuery] bool useNpAlgorithm = false)
         {
-            throw new NotImplementedException();
+            return Ok(await _balances.GetSuggestedTransfersAsync(groupId, useNpAlgorithm));
         }
 
         /// <summary>
