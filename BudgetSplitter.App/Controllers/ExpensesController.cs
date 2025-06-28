@@ -10,7 +10,7 @@ namespace BudgetSplitter.App.Controllers
     /// Controller for managing expenses within a group.
     /// </summary>
     [ApiController]
-    [Route("api/groups/{groupId:guid}/expenses")]
+    [Route("api/expenses")]
     public class ExpensesController : ControllerBase
     {
         private readonly IExpenseService _expenseService;
@@ -22,7 +22,7 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="groupId">ID of the group.</param>
         /// <param name="userId">Optional user ID to filter expenses by payer.</param>
         /// <returns>List of ExpenseResponseDto.</returns>
-        [HttpGet]
+        [HttpGet("group/{groupId:guid}")]
         public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetExpenses(
             Guid groupId,
             [FromQuery] Guid? userId = null)
@@ -31,16 +31,16 @@ namespace BudgetSplitter.App.Controllers
             return Ok(expenses);
         }
 
-        /// <summary>
-        /// Retrieves all draft (unconfirmed) expenses in the group.
-        /// </summary>
-        /// <param name="groupId">ID of the group.</param>
-        /// <returns>List of draft ExpenseResponseDto.</returns>
-        [HttpGet("drafts")]
-        public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetDraftExpenses(Guid groupId)
-        {
-            throw new NotImplementedException();
-        }
+        // /// <summary>
+        // /// Retrieves all draft (unconfirmed) expenses in the group.
+        // /// </summary>
+        // /// <param name="groupId">ID of the group.</param>
+        // /// <returns>List of draft ExpenseResponseDto.</returns>
+        // [HttpGet("drafts")]
+        // public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetDraftExpenses(Guid groupId)
+        // {
+        //     throw new NotImplementedException();
+        // }
 
         /// <summary>
         /// Retrieves details for a specific expense.
@@ -61,7 +61,7 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="groupId">ID of the group.</param>
         /// <param name="dto">Data for creating the expense.</param>
         /// <returns>The created ExpenseResponseDto.</returns>
-        [HttpPost]
+        [HttpPost("group/{groupId:guid}")]
         public async Task<ActionResult<ExpenseResponseDto>> CreateExpense(
             Guid groupId,
             [FromBody] CreateExpenseRequestDto dto)
@@ -150,7 +150,7 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="groupId">ID of the group.</param>
         /// <param name="expenseId">ID of the expense.</param>
         /// <param name="share">Updated share details for the participant.</param>
-        [HttpPut("{expenseId:guid}/participants/{userId:guid}")]
+        [HttpPut("{expenseId:guid}/participants")]
         public async Task<IActionResult> UpdateExpenseParticipant(
             Guid groupId,
             Guid expenseId,
