@@ -6,6 +6,7 @@ namespace BudgetSplitter.App.Services.GroupService;
 public interface IGroupService
 {
     Task<IEnumerable<GroupOverviewResponseDto>> GetMyGroupsAsync(long telegramId);
+    Task<IEnumerable<GroupOverviewResponseDto>> GetGroupsAsync(long telegramChatId);
     Task<GroupResponseDto> GetGroupAsync(Guid groupId);
     Task<GroupResponseDto> CreateGroupAsync(CreateGroupRequestDto dto);
     Task UpdateGroupAsync(Guid groupId, UpdateGroupRequestDto dto);

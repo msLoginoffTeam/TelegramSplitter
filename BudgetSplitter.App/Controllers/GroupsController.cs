@@ -20,10 +20,21 @@ namespace BudgetSplitter.App.Controllers
         /// </summary>
         /// <param name="userTelegramId">Telegram ID of the user.</param>
         /// <returns>List of GroupOverviewResponseDto for the user’s groups.</returns>
-        [HttpGet]
+        [HttpGet("my")]
         public async Task<ActionResult<IEnumerable<GroupOverviewResponseDto>>> GetMyGroups(long userTelegramId)
         {
             var groups = await _groupService.GetMyGroupsAsync(userTelegramId);
+            return Ok(groups);
+        }
+        
+        /// <summary>
+        /// Retrieves all groups the specified chat belongs to.
+        /// </summary>
+        /// <returns>List of GroupOverviewResponseDto for the user’s groups.</returns>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<GroupOverviewResponseDto>>> GetGroups(long telegramChatId)
+        {
+            var groups = await _groupService.GetGroupsAsync(telegramChatId);
             return Ok(groups);
         }
 

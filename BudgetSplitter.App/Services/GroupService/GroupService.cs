@@ -34,6 +34,21 @@ public class GroupService : IGroupService
             });
     }
 
+    public async Task<IEnumerable<GroupOverviewResponseDto>> GetGroupsAsync(long telegramChatId)
+    {
+        var groups = await _db.Groups
+            .Where(g => g.TelegramChatId == telegramChatId)
+            .AsNoTracking()
+            .ToListAsync();
+        
+        return groups
+            .Select(g => new GroupOverviewResponseDto
+            {
+                Id = g.Id,
+                Title = g.Title
+            });
+    }
+
     public async Task<GroupResponseDto> GetGroupAsync(Guid groupId)
     {
         var group = await _db.Groups
