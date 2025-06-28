@@ -71,18 +71,33 @@ namespace BudgetSplitter.App.Controllers
         }
 
         /// <summary>
-        /// Updates an existing expense’s title, total amount or payer.
+        /// Updates an existing expense’s title
         /// </summary>
-        /// <param name="groupId">ID of the group.</param>
         /// <param name="expenseId">ID of the expense to update.</param>
         /// <param name="dto">Fields to update.</param>
-        [HttpPut("{expenseId:guid}")]
-        public async Task<IActionResult> UpdateExpense(
-            Guid groupId,
+        /// <param name="title"></param>
+        [HttpPut("{expenseId:guid}/title")]
+        public async Task<IActionResult> UpdateExpenseTitle(
+            //Guid groupId,
             Guid expenseId,
-            [FromBody] UpdateExpenseRequestDto dto)
+            [FromBody] string title)
         {
-            await _expenseService.UpdateExpenseAsync(groupId, expenseId, dto);
+            await _expenseService.UpdateExpenseAsync(expenseId, title);
+            return Ok();
+        }
+
+        /// <summary>
+        /// Updates an existing expense’s total amount.
+        /// </summary>
+        /// <param name="expenseId">ID of the expense to update.</param>
+        /// <param name="totalAmount"></param>
+        [HttpPut("{expenseId:guid}/totalAmount")]
+        public async Task<IActionResult> UpdateExpenseTotalAmount(
+            //Guid groupId,
+            Guid expenseId,
+            [FromBody] decimal totalAmount)
+        {
+            await _expenseService.UpdateExpenseAsync(expenseId, totalAmount);
             return Ok();
         }
 

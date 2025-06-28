@@ -18,7 +18,8 @@ public interface IExpenseService
         CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto);
 
     // редактирует поля самой траты (metadata)
-    Task UpdateExpenseAsync(Guid groupId, Guid expenseId, UpdateExpenseRequestDto dto);
+    Task UpdateExpenseAsync(Guid expenseId, decimal amount);
+    Task UpdateExpenseAsync(Guid expenseId, string title);
 
     // удаляет (или помечает удалённой) конкретную трату
     Task DeleteExpenseAsync(Guid groupId, Guid expenseId);

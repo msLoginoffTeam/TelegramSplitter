@@ -15,7 +15,7 @@ public class ExpenseService : IExpenseService
     public async Task<IEnumerable<ExpenseResponseDto>> GetGroupExpensesAsync(Guid groupId, bool includeDrafts = false)
     {
         var query = _db.Expenses
-            .Where(e => e.GroupId == groupId && (includeDrafts || !e.IsDraft))
+            .Where(e => e.GroupId == groupId)
             .AsNoTracking();
 
         return query.Select(e => new ExpenseResponseDto
@@ -106,15 +106,37 @@ public class ExpenseService : IExpenseService
         return await GetExpenseByIdAsync(groupId, expense.Id);
     }
 
-    public async Task UpdateExpenseAsync(Guid groupId, Guid expenseId, UpdateExpenseRequestDto dto)
+    public async Task UpdateExpenseAsync(Guid expenseId, string title)
     {
         var expense = await _db.Expenses
-            .FirstOrDefaultAsync(e => e.GroupId == groupId && e.Id == expenseId);
-        if (expense == null) throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
+            .FirstOrDefaultAsync(e => e.Id == expenseId);
+        if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
 
-        expense.Title = dto.Title ?? expense.Title;
-        expense.TotalAmount = dto.TotalAmount ?? expense.TotalAmount;
-        if (dto.IsDraft.HasValue) expense.IsDraft = dto.IsDraft.Value;
+        expense.Title = title;
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task UpdateExpenseAsync(Guid expenseId, decimal totalAmount)
+    {
+        var expense = await _db.Expenses
+            .Include(expense => expense.CreatedBy).Include(expense => expense.Shares)
+            .ThenInclude(expenseShare => expenseShare.User)
+            .FirstOrDefaultAsync(e => e.Id == expenseId);
+        if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
+
+        var value = totalAmount - expense.TotalAmount;
+
+        var creator = expense.Shares.FirstOrDefault(x => x.User == expense.CreatedBy)!;
+        creator.Amount += value;
+
+        if (creator.Amount < 0)
+        {
+            throw new BadRequestException(
+                $"Сумма долей превышает новую общую сумму {totalAmount}");
+        }
+
+        expense.TotalAmount = totalAmount;
 
         await _db.SaveChangesAsync();
     }
