@@ -24,11 +24,13 @@ public class ExpenseService : IExpenseService
             Title = e.Title,
             TotalAmount = e.TotalAmount,
             CreatedById = e.CreatedById,
+            CreatedByName = e.CreatedBy.DisplayName,
             CreatedAt = e.CreatedAt,
             IsDraft = e.IsDraft,
             Shares = e.Shares.Select(s => new ExpenseShareResponseDto
             {
                 UserId = s.UserId,
+                UserName = s.User.DisplayName,
                 Amount = s.Amount,
                 IsPaid = s.IsPaid
             }).ToList()
@@ -39,7 +41,7 @@ public class ExpenseService : IExpenseService
     {
         var expense = await _db.Expenses
             .Where(x => x.GroupId == groupId && x.Id == expenseId)
-            .Include(x => x.Shares)
+            .Include(x => x.Shares).ThenInclude(expenseShare => expenseShare.User).Include(expense => expense.CreatedBy)
             .AsNoTracking()
             .FirstOrDefaultAsync();
         if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
@@ -50,11 +52,13 @@ public class ExpenseService : IExpenseService
             Title = expense.Title,
             TotalAmount = expense.TotalAmount,
             CreatedById = expense.CreatedById,
+            CreatedByName = expense.CreatedBy.DisplayName,
             CreatedAt = expense.CreatedAt,
             IsDraft = expense.IsDraft,
             Shares = expense.Shares.Select(s => new ExpenseShareResponseDto
             {
                 UserId = s.UserId,
+                UserName = s.User.DisplayName,
                 Amount = s.Amount,
                 IsPaid = s.IsPaid
             }).ToList()
@@ -163,11 +167,12 @@ public class ExpenseService : IExpenseService
     {
         var shares = await _db.ExpenseShares
             .Where(s => s.ExpenseId == expenseId && s.Expense.GroupId == groupId)
-            .AsNoTracking()
+            .AsNoTracking().Include(expenseShare => expenseShare.User)
             .ToListAsync();
         return shares.Select(s => new ExpenseShareResponseDto
         {
             UserId = s.UserId,
+            UserName = s.User.DisplayName,
             Amount = s.Amount,
             IsPaid = s.IsPaid
         });

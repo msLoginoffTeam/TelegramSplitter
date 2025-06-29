@@ -59,6 +59,7 @@ public class BalanceService : IBalanceService
             result.Balances.Add(new UserBalanceResponseDto
             {
                 UserId = u.Id,
+                DisplayName = u.DisplayName,
                 Balance = credit - owes - received + sent
             });
         }
@@ -73,24 +74,25 @@ public class BalanceService : IBalanceService
             .Select(b => new
             {
                 UserId = b.UserId,
+                DisplayName = b.DisplayName,
                 Balance = Math.Round(b.Balance, 2)
             })
             .Where(x => x.Balance != 0)
             .ToList();
 
-        var debtors = new Queue<(Guid user, decimal amount)>(
+        var debtors = new Queue<(Guid user, decimal amount, string? name)>(
             list.Where(x => x.Balance < 0)
-                .Select(x => (x.UserId, -x.Balance))); // amount > 0
-        var creditors = new Queue<(Guid user, decimal amount)>(
+                .Select(x => (x.UserId, -x.Balance, x.DisplayName))); // amount > 0
+        var creditors = new Queue<(Guid user, decimal amount, string? name)>(
             list.Where(x => x.Balance > 0)
-                .Select(x => (x.UserId, x.Balance))); // amount > 0
+                .Select(x => (x.UserId, x.Balance, x.DisplayName))); // amount > 0
 
         var suggestions = new List<TransferSuggestionDto>();
-
+        
         while (debtors.Any() && creditors.Any())
         {
-            var (debtor, oweAmt) = debtors.Dequeue();
-            var (creditor, credAmt) = creditors.Dequeue();
+            var (debtor, oweAmt, debtorName) = debtors.Dequeue();
+            var (creditor, credAmt, creditorName) = creditors.Dequeue();
 
             var transfer = Math.Min(oweAmt, credAmt);
 
@@ -98,13 +100,15 @@ public class BalanceService : IBalanceService
             {
                 FromUserId = debtor,
                 ToUserId = creditor,
-                Amount = transfer
+                Amount = transfer,
+                FromUserName = debtorName,
+                ToUserName = creditorName
             });
 
             if (oweAmt > transfer)
-                debtors.Enqueue((debtor, oweAmt - transfer));
+                debtors.Enqueue((debtor, oweAmt - transfer, debtorName));
             if (credAmt > transfer)
-                creditors.Enqueue((creditor, credAmt - transfer));
+                creditors.Enqueue((creditor, credAmt - transfer, creditorName));
         }
 
         return new TransferSuggestionsResponseDto
