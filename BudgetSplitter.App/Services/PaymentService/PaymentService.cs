@@ -96,9 +96,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Id = payment.Id,
                 ExpenseId = payment.Expense.Id,
                 FromUserId = payment.FromUserId,
-                FromUserName = payment.FromUser.DisplayName,
                 ToUserId = payment.ToUserId,
-                ToUserName = payment.ToUser.DisplayName,
                 Amount = payment.Amount,
                 Timestamp = payment.Timestamp
             };
@@ -133,9 +131,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Id = payment.Id,
                 ExpenseId = payment.Expense?.Id,
                 FromUserId = payment.FromUserId,
-                FromUserName = payment.FromUser.DisplayName,
                 ToUserId = payment.ToUserId,
-                ToUserName = payment.ToUser.DisplayName,
                 Amount = payment.Amount,
                 Timestamp = payment.Timestamp
             };
