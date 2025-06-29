@@ -14,7 +14,8 @@ namespace BudgetSplitter.App.Services.PaymentService;
         {
             var payments = await _db.Payments
                 .Where(p => p.GroupId == groupId)
-                .AsNoTracking().Include(payment => payment.Expense!)
+                .AsNoTracking().Include(payment => payment.Expense!).Include(payment => payment.FromUser)
+                .Include(payment => payment.ToUser)
                 .ToListAsync();
 
             return payments.Select(p => new PaymentResponseDto
@@ -22,7 +23,9 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Id = p.Id,
                 ExpenseId = p.Expense?.Id,
                 FromUserId = p.FromUserId,
+                FromUserName = p.FromUser.DisplayName,
                 ToUserId = p.ToUserId,
+                ToUserName = p.ToUser.DisplayName,
                 Amount = p.Amount,
                 Timestamp = p.Timestamp
             });
@@ -33,7 +36,8 @@ namespace BudgetSplitter.App.Services.PaymentService;
             var payments = await _db.Payments
                 .Where(p => p.GroupId == groupId &&
                             (p.FromUserId == userId || p.ToUserId == userId))
-                .AsNoTracking().Include(payment => payment.Expense)
+                .AsNoTracking().Include(payment => payment.Expense).Include(payment => payment.FromUser)
+                .Include(payment => payment.ToUser)
                 .ToListAsync();
 
             return payments.Select(p => new PaymentResponseDto
@@ -41,7 +45,9 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Id = p.Id,
                 ExpenseId = p.Expense?.Id,
                 FromUserId = p.FromUserId,
+                FromUserName = p.FromUser.DisplayName,
                 ToUserId = p.ToUserId,
+                ToUserName = p.ToUser.DisplayName,
                 Amount = p.Amount,
                 Timestamp = p.Timestamp
             });
@@ -90,7 +96,9 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Id = payment.Id,
                 ExpenseId = payment.Expense.Id,
                 FromUserId = payment.FromUserId,
+                FromUserName = payment.FromUser.DisplayName,
                 ToUserId = payment.ToUserId,
+                ToUserName = payment.ToUser.DisplayName,
                 Amount = payment.Amount,
                 Timestamp = payment.Timestamp
             };
@@ -125,7 +133,9 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Id = payment.Id,
                 ExpenseId = payment.Expense?.Id,
                 FromUserId = payment.FromUserId,
+                FromUserName = payment.FromUser.DisplayName,
                 ToUserId = payment.ToUserId,
+                ToUserName = payment.ToUser.DisplayName,
                 Amount = payment.Amount,
                 Timestamp = payment.Timestamp
             };
