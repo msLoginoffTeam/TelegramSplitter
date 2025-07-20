@@ -41,8 +41,7 @@ jobs:
 
       - name: Tag Docker images
         run: |
-          docker tag ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:$APP_VERSION ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:latest
-
+          docker tag maxloginoff/telegram-splitter-app:$APP_VERSION ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:latest
       - name: Push Docker images
         run: |
           docker push -a ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app
