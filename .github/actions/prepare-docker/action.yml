@@ -18,7 +18,7 @@ runs:
         USERNAME: ${{ inputs.username }}
         PASSWORD: ${{ inputs.password }}
       run: |
-        echo "$PASSWORD" | docker login cr.yandex --username "$USERNAME" --password-stdin
+        echo "$PASSWORD" | docker login --username "$USERNAME" --password-stdin
       shell: bash
 
     - name: Set up QEMU
