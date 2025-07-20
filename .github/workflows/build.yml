@@ -27,6 +27,9 @@ jobs:
           password: ${{ secrets.CI_REGISTRY_PASSWORD }}
           username: ${{ secrets.CI_REGISTRY_USER }}
 
+      - name: Inject APP_VERSION into .env
+        run: echo "APP_VERSION=${{ github.event.inputs.app_version }}" > .env
+
       - name: Build Docker images
         env:
           CI_REGISTRY_IMAGE: ${{ secrets.CI_REGISTRY_IMAGE }}
