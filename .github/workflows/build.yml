@@ -30,7 +30,8 @@ jobs:
       - name: Build Docker images
         env:
           CI_REGISTRY_IMAGE: ${{ secrets.CI_REGISTRY_IMAGE }}
-        run: docker-compose build telegram-splitter-app
+        run: |
+          DOCKER_BUILDKIT=0 docker-compose build telegram-splitter-app
 
       - name: List images
         run: docker images
