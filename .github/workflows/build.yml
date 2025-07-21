@@ -69,7 +69,7 @@ jobs:
           prerelease: false
 
   deploy:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, tg]
     needs: release
     if: github.ref == 'refs/heads/main'
     steps:
