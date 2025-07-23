@@ -27,18 +27,21 @@ jobs:
           password: ${{ secrets.CI_REGISTRY_PASSWORD }}
           username: ${{ secrets.CI_REGISTRY_USER }}
 
+      - name: Inject APP_VERSION into .env
+        run: echo "APP_VERSION=${{ github.event.inputs.app_version }}" > .env
+
       - name: Build Docker images
         env:
           CI_REGISTRY_IMAGE: ${{ secrets.CI_REGISTRY_IMAGE }}
-        run: docker-compose build telegram-splitter-app
+        run: |
+          DOCKER_BUILDKIT=0 docker-compose build telegram-splitter-app
 
       - name: List images
         run: docker images
 
       - name: Tag Docker images
         run: |
-          docker tag ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:$APP_VERSION ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:latest
-
+          docker tag maxloginoff/telegram-splitter-app:$APP_VERSION ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app:latest
       - name: Push Docker images
         run: |
           docker push -a ${{ secrets.CI_REGISTRY_IMAGE }}/telegram-splitter-app
@@ -66,7 +69,7 @@ jobs:
           prerelease: false
 
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64, tg]
     needs: release
     if: github.ref == 'refs/heads/main'
     steps:
