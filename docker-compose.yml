@@ -36,8 +36,8 @@ services:
         Username=${POSTGRES_USER:-postgres};
         Password=${POSTGRES_PASSWORD:-postgres}
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-    ports:
-      - "5050:8080"
+    #ports:
+      #- "5050:8080"
     depends_on:
       db:
         condition: service_healthy
