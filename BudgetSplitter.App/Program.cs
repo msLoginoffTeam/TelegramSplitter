@@ -70,6 +70,9 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
     })
 );
 
+Console.WriteLine("==== Connection string ====");
+Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
