@@ -282,7 +282,7 @@ public class ExpenseService : IExpenseService
             .Include(x => x.Expense)
             .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == userId);
 
-        if (share == null || share.Expense.GroupId != groupId)
+        if (share == null)
             return;
 
         _db.ExpenseShares.Remove(share);
