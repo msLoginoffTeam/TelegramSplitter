@@ -148,7 +148,7 @@ public class ExpenseService : IExpenseService
     public async Task DeleteExpenseAsync(Guid groupId, Guid expenseId)
     {
         var expense = await _db.Expenses
-            .FirstOrDefaultAsync(e => e.GroupId == groupId && e.Id == expenseId);
+            .FirstOrDefaultAsync(e => e.Id == expenseId);
         if (expense == null) return;
         _db.Expenses.Remove(expense);
         await _db.SaveChangesAsync();
