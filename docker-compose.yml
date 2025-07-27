@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-splitterdb}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:54321:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
       interval: 5s
@@ -37,7 +37,7 @@ services:
         Password=${POSTGRES_PASSWORD:-postgres}
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
     ports:
-      - "5050:8080"
+      - "127.0.0.1:5050:8080"
     depends_on:
       db:
         condition: service_healthy
