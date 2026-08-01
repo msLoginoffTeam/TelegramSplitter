@@ -20,7 +20,7 @@
 | TS-014 | P1 | open | Bot | Сценарные состояния хранятся в глобальных `map` без mutex, TTL и persistence: race risk, утечки и потеря состояния после рестарта. |
 | TS-015 | P1 | open | Bot | `GetUserUUIDbyid` передаёт message по значению и декодирует user response как `GroupResponseDto`, скрывая ошибки и создавая риск nil/panic. |
 | TS-016 | P1 | planned | API clients | Репозитории остаются раздельными. Нужна автоматическая генерация Go и TypeScript/React Query clients из OpenAPI плюс CI drift check. |
-| TS-017 | P1 | open | Testing | Нет содержательных unit/integration tests; backend release workflow не запускает .NET tests. |
+| TS-017 | P1 | open | Testing | Есть reusable test foundation и 8 tests для Telegram auth: unit validation плюс integration API/PostgreSQL. Денежные операции, group authorization, migrations и transfers пока не покрыты; новый workflow запускает `dotnet test` на push/PR. |
 | TS-018 | P1 | fixed | Docker | Backend Compose теперь поднимает только `db` и `api`; frontend имеет независимый Compose. Локальный основной путь — БД в Docker и API из IDE. Bot намеренно не включён. |
 | TS-019 | P2 | open | Docker/CI | Backend Compose готов для контейнерной поставки, но API healthcheck, non-root runtime и CI/CD deployment policy ещё нужно определить перед VPS. |
 | TS-020 | P2 | fixed | Git | `.gitignore` больше не маскирует все `appsettings.*.json`, Dockerfile и Compose-файлы; локально секретными остаются только `.env` и `appsettings.Local.json`. |

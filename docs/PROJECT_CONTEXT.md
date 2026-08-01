@@ -6,6 +6,7 @@
 
 - Этот файл: архитектура, доменная модель, состояние репозиториев и план.
 - `docs/KNOWN_ISSUES.md`: подтверждённые баги, риски и открытые продуктовые решения.
+- `docs/TESTING.md`: запуск тестов и reusable integration-test infrastructure.
 - Корневой `AGENTS.md`: обязательный указатель для следующих сессий Codex.
 
 ## Канонические репозитории
@@ -26,6 +27,7 @@
 
 - ASP.NET Core / EF Core / PostgreSQL 16, target `net9.0`.
 - Backend собирается успешно, но остаются четыре compiler warning: nullable navigation `Group.CreatedBy`, два `async` без `await` и неверный XML `param` в `ExpensesController`.
+- Есть 4 unit и 4 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
 - Docker CLI и OrbStack доступны; Compose разделён между репозиториями.
 - В активной копии есть пользовательское незакоммиченное изменение `appsettings.Development.json`; не перезаписывать и не выводить его секреты.
@@ -66,8 +68,8 @@ Frontend не пишет API-контракты вручную: OpenAPI snapshot
 
 ## Направление реализации
 
-1. Создать рабочие feature-ветки в backend и уже созданном frontend-репозитории.
-2. Стабилизировать backend: Telegram `initData` auth, group authorization, денежные инварианты, транзакции, migrations и тесты.
+1. Изменения временно ведутся прямо в `main` обоих репозиториев по решению владельца.
+2. Стабилизировать backend: group authorization, денежные инварианты, транзакции, migrations и расширение tests.
 3. Нормализовать OpenAPI и генерировать Go/TypeScript clients с CI drift check.
 4. Реализовать отдельный React + TypeScript Mini App: список групп, dashboard, expense wizard, payments, transfers, members/settings.
 5. Сократить Go-бот до Telegram entrypoint: `/start`, запуск Mini App, group deep links, приглашения, уведомления и публикация итогов.
