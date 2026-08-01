@@ -32,7 +32,7 @@
 | TS-026 | P2 | open | Code quality | Release build имеет два compiler warning: nullable `Group.CreatedBy` и XML `param` с неверным именем в `ExpensesController`. Перед включением warning-as-error их нужно устранить. |
 | TS-027 | P1 | open | Bot integration | Защищённые API endpoints теперь требуют Telegram Mini App auth. У Go-бота пока нет отдельной server-to-server identity, поэтому его API-вызовы нужно адаптировать до следующего production запуска. Не добавлять постоянный обход через подстановку user ID. |
 | TS-028 | P2 | fixed | Dependencies | Миграция на .NET 10 выявила восемь CVE в транзитивном `System.Security.Cryptography.Xml` 9.0.0. Источником были лишние EF design-time пакеты в persistence-проекте; они удалены, а `dotnet-ef` закреплён в tool manifest. |
-| TS-029 | P1 | fixed | CI testing | Integration tests в GitHub Actions не запускались: `Program` требовал connection string раньше, чем test factory заменяла DbContext. Factory задаёт connection string временного Testcontainers PostgreSQL через in-memory configuration, а проверка runtime connection string перенесена в регистрацию DbContext. |
+| TS-029 | P1 | fixed | CI testing | Integration tests в GitHub Actions не запускались без `appsettings.Local.json`, а .NET 10 оставлял исходную EF registration после частичной замены. Добавлены versioned `appsettings.Tests.json`, environment `Tests` и удаление `IDbContextOptionsConfiguration<AppDbContext>` перед подключением Testcontainers PostgreSQL. |
 
 ## Открытые продуктовые решения
 

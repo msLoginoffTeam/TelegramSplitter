@@ -14,8 +14,14 @@ using Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration
-    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables();
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
+if (builder.Environment.IsEnvironment("Tests"))
+{
+    builder.Configuration.AddJsonFile("appsettings.Tests.json", optional: false, reloadOnChange: false);
+}
+
+builder.Configuration.AddEnvironmentVariables();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 

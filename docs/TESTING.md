@@ -6,7 +6,7 @@
 dotnet test BudgetSplitterWebApi.sln
 ```
 
-Для integration tests нужен запущенный Docker-compatible runtime, например OrbStack. Они не используют локальную development БД, `.env` или `appsettings.Local.json`: connection string временного PostgreSQL задаёт test factory.
+Для integration tests нужен запущенный Docker-compatible runtime, например OrbStack. По умолчанию factory запускает API в environment `Tests`, поэтому используется versioned `BudgetSplitter.App/appsettings.Tests.json`, а не `.env` или `appsettings.Local.json`. Сам DbContext подключается к временному PostgreSQL из Testcontainers.
 
 ## Структура
 
