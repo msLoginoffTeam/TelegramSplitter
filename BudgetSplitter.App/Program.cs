@@ -1,4 +1,5 @@
 using System.Reflection;
+using BudgetSplitter.App.Authentication;
 using BudgetSplitter.App.Middlewares;
 using BudgetSplitter.App.Services.BalanceService;
 using BudgetSplitter.App.Services.ExpenseService;
@@ -6,6 +7,7 @@ using BudgetSplitter.App.Services.GroupService;
 using BudgetSplitter.App.Services.PaymentService;
 using BudgetSplitter.App.Services.UserService;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.OpenApi.Models;
 using Persistence;
 
@@ -20,6 +22,15 @@ var conn = builder.Configuration.GetConnectionString("DefaultConnection")
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.Configure<TelegramAuthOptions>(
+    builder.Configuration.GetSection(TelegramAuthOptions.SectionName));
+builder.Services.AddSingleton<TelegramInitDataValidator>();
+builder.Services
+    .AddAuthentication(TelegramAuthDefaults.Scheme)
+    .AddScheme<AuthenticationSchemeOptions, TelegramAuthenticationHandler>(
+        TelegramAuthDefaults.Scheme,
+        _ => { });
+builder.Services.AddAuthorization();
 builder.Services.AddSwaggerGen(c =>
 {
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -38,19 +49,14 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
-    // {
-    //     In          = ParameterLocation.Header,
-    //     Name        = "X-ApiKey",
-    //     Type        = SecuritySchemeType.ApiKey,
-    //     Description = "API ключ для доступа к методам."
-    // });
-    // c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    // {
-    //     [ new OpenApiSecurityScheme { Reference = 
-    //         new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" } }
-    //     ] = Array.Empty<string>()
-    // });
+    c.AddSecurityDefinition("TelegramInitData", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Name = TelegramAuthDefaults.InitDataHeaderName,
+        Type = SecuritySchemeType.ApiKey,
+        Description = "Telegram Mini App initData."
+    });
+    c.OperationFilter<TelegramAuthOperationFilter>();
 
 });
 
@@ -83,6 +89,8 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

@@ -43,6 +43,14 @@ Telegram Mini App для совместных расходов: группы, т
 - Положительный баланс означает «пользователю должны», отрицательный — «пользователь должен».
 - Итоговые transfers рассчитываются по чистым балансам и устраняют встречные/циклические переводы.
 
+## Аутентификация Mini App
+
+- Все controller endpoints под `/api` требуют Telegram authentication.
+- Production принимает `X-Telegram-Init-Data` и проверяет Telegram HMAC с `TelegramAuth:BotToken`; `auth_date` по умолчанию действует 24 часа.
+- `Development` принимает `X-Telegram-Dev-User-Id` только для локальной разработки. Это Telegram ID, не внутренний UUID пользователя.
+- Подтверждённый Telegram ID хранится в `HttpContext.User` как `ClaimTypes.NameIdentifier` и `telegram_id` claim.
+- Authentication не заменяет group authorization: доступ к каждой конкретной группе будет добавлен следующим этапом.
+
 ## Принятая структура репозиториев
 
 Backend, Mini App и Telegram adapter развиваются в отдельных репозиториях. Это осознанный выбор ради чистой истории и независимого представления frontend/backend на GitHub:

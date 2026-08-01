@@ -28,6 +28,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
+      TelegramAuth__BotToken: ${TELEGRAM_BOT_TOKEN:-}
+      TelegramAuth__MaxAuthAgeSeconds: ${TELEGRAM_AUTH_MAX_AGE_SECONDS:-86400}
       ConnectionStrings__DefaultConnection: >-
         Host=db;Port=5432;Database=${POSTGRES_DB:-splitterdb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     ports:

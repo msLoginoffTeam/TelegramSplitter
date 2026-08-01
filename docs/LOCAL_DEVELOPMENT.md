@@ -10,6 +10,18 @@ Compose этого репозитория поднимает только API и
 
 Для API, запущенного из Rider или `dotnet run`, можно скопировать [`appsettings.Local.example.json`](../BudgetSplitter.App/appsettings.Local.example.json) в `BudgetSplitter.App/appsettings.Local.json`. Этот файл не коммитится. Приоритет настроек: стандартные `appsettings*.json` → `appsettings.Local.json` → environment variables.
 
+## Telegram authentication
+
+Все `/api/*` endpoints требуют подтверждённую Telegram-идентичность. В production Mini App передаёт исходную строку Telegram `initData` в заголовке `X-Telegram-Init-Data`; backend проверяет её HMAC-подпись через `TelegramAuth:BotToken`. Для контейнерного запуска задайте `TELEGRAM_BOT_TOKEN` в `.env`.
+
+В `Development` для Swagger, curl и будущего browser fallback разрешён только заголовок `X-Telegram-Dev-User-Id` со значением Telegram ID. Этот обход не работает в production:
+
+```bash
+curl -H 'X-Telegram-Dev-User-Id: 123456789' http://localhost:5028/api/groups
+```
+
+Этот шаг подтверждает личность, но ещё не проверяет membership конкретной группы — это следующий этап backend-hardening.
+
 ## Ежедневный сценарий: БД в Docker, API из IDE
 
 ```bash

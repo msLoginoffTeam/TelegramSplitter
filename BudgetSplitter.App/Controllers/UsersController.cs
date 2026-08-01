@@ -1,6 +1,7 @@
 using BudgetSplitter.App.Services.UserService;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BudgetSplitter.App.Controllers;
@@ -9,6 +10,7 @@ namespace BudgetSplitter.App.Controllers;
 /// Controller for user management.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/users")]
 public class UsersController : ControllerBase
 {

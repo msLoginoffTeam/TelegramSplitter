@@ -1,6 +1,7 @@
 using BudgetSplitter.App.Services.PaymentService;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BudgetSplitter.App.Controllers
@@ -9,6 +10,7 @@ namespace BudgetSplitter.App.Controllers
     /// Controller for managing payments within a group, both for expenses and direct transfers.
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/groups/{groupId:guid}/payments")]
     public class PaymentsController : ControllerBase
     {

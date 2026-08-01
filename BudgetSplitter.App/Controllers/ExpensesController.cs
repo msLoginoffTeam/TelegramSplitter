@@ -2,6 +2,7 @@ using BudgetSplitter.App.Services.ExpenseService;
 using BudgetSplitter.Common.Dtos;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BudgetSplitter.App.Controllers
@@ -10,6 +11,7 @@ namespace BudgetSplitter.App.Controllers
     /// Controller for managing expenses within a group.
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/expenses")]
     public class ExpensesController : ControllerBase
     {

@@ -1,6 +1,7 @@
 using BudgetSplitter.App.Services.GroupService;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BudgetSplitter.App.Controllers
@@ -9,6 +10,7 @@ namespace BudgetSplitter.App.Controllers
     /// Controller for group CRUD operations and membership management.
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/groups")]
     public class GroupsController : ControllerBase
     {

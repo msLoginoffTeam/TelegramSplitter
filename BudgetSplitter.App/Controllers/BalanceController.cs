@@ -1,10 +1,12 @@
 using BudgetSplitter.App.Services.BalanceService;
 using BudgetSplitter.Common.Dtos.Response;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BudgetSplitter.App.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/groups/{groupId:guid}")]
     public class BalanceController : ControllerBase
     {

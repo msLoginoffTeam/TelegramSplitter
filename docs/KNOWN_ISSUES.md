@@ -5,7 +5,7 @@
 | ID | Приоритет | Статус | Область | Проблема / риск |
 |---|---|---|---|---|
 | TS-001 | P1 | fixed | Local Git | Устаревшая локальная копия backend `/Users/max/RiderProjects/TelegramSplitter` удалена; канонической остаётся `/Users/max/RiderProjects/BudgetSplitterWebApi`. |
-| TS-002 | P0 | open | Security | В API нет Telegram `initData` validation, authentication и group-level authorization. Клиент может подставить чужой Telegram/user/group ID. |
+| TS-002 | P0 | open | Security | Telegram `initData` validation и authentication добавлены для всех `/api` controller endpoints; в Development доступен отдельный dev header. Group-level authorization и отказ от user IDs в DTO ещё не сделаны, поэтому клиент всё ещё может попытаться действовать от имени другого участника. |
 | TS-003 | P0 | open | Backend | Удаление expense и participant не проверяет переданный `groupId` (коммиты `3deda12`, `becaea4`), допуская cross-group mutation. |
 | TS-004 | P0 | fixed | Secrets | `Program.cs` больше не выводит connection string в stdout. |
 | TS-005 | P0 | open | Data | `CreateExpenseAsync` сохраняет expense до проверки shares и делает два `SaveChanges`; при ошибке остаётся неполная трата. |
@@ -30,6 +30,7 @@
 | TS-024 | P2 | open | Working tree | В канонической локальной копии изменён `appsettings.Development.json`. Это пользовательское изменение: не перезаписывать, не печатать секреты, перед commit решить — оставить локальным или заменить безопасным шаблоном. |
 | TS-025 | P1 | open | CI/CD | Backend и bot workflows всё ещё ориентированы на Docker Hub/VPS и self-hosted runner; bot deploy запускается после push в `main`. На период локальной разработки deployment нужно отключить или сделать только ручным через защищённый GitHub Environment. |
 | TS-026 | P2 | open | Code quality | Release build имеет четыре warning: nullable `Group.CreatedBy`, два `async` метода без `await`, и XML `param` с неверным именем в `ExpensesController`. Перед включением warning-as-error их нужно устранить. |
+| TS-027 | P1 | open | Bot integration | Защищённые API endpoints теперь требуют Telegram Mini App auth. У Go-бота пока нет отдельной server-to-server identity, поэтому его API-вызовы нужно адаптировать до следующего production запуска. Не добавлять постоянный обход через подстановку user ID. |
 
 ## Открытые продуктовые решения
 
