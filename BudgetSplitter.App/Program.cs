@@ -17,8 +17,7 @@ builder.Configuration
     .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-var conn = builder.Configuration.GetConnectionString("DefaultConnection")
-           ?? throw new SystemException("Connection string not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -67,14 +66,20 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 
 builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseNpgsql(conn, npgsql =>
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new SystemException("Connection string not found.");
+    }
+
+    opts.UseNpgsql(connectionString, npgsql =>
     {
         npgsql.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(10),
             errorCodesToAdd: null);
-    })
-);
+    });
+});
 
 var app = builder.Build();
 
