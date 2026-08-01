@@ -1,5 +1,7 @@
 # Backend tests
 
+Для EF-команд из репозитория один раз выполни `dotnet tool restore`: версия `dotnet-ef` фиксируется в `.config/dotnet-tools.json` и не зависит от глобально установленного инструмента.
+
 ```bash
 dotnet test BudgetSplitterWebApi.sln
 ```

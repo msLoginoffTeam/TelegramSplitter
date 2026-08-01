@@ -25,8 +25,8 @@
 
 ## Техническое состояние
 
-- ASP.NET Core / EF Core / PostgreSQL 16, target `net9.0`.
-- Backend собирается успешно, но остаются четыре compiler warning: nullable navigation `Group.CreatedBy`, два `async` без `await` и неверный XML `param` в `ExpensesController`.
+- ASP.NET Core / EF Core / PostgreSQL 16, target `net10.0`; SDK фиксирован в `global.json` (`10.0.101`), локальный `dotnet-ef` — в `.config/dotnet-tools.json`.
+- Backend собирается успешно, но остаются два compiler warning: nullable navigation `Group.CreatedBy` и неверный XML `param` в `ExpensesController`.
 - Есть 4 unit и 4 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
 - Docker CLI и OrbStack доступны; Compose разделён между репозиториями.

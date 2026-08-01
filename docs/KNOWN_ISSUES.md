@@ -29,8 +29,9 @@
 | TS-023 | P2 | open | Users | `DisplayName` unique, хотя Telegram-имена не уникальны и меняются. Идентичность должна опираться на Telegram ID. |
 | TS-024 | P2 | open | Working tree | В канонической локальной копии изменён `appsettings.Development.json`. Это пользовательское изменение: не перезаписывать, не печатать секреты, перед commit решить — оставить локальным или заменить безопасным шаблоном. |
 | TS-025 | P1 | open | CI/CD | Backend и bot workflows всё ещё ориентированы на Docker Hub/VPS и self-hosted runner; bot deploy запускается после push в `main`. На период локальной разработки deployment нужно отключить или сделать только ручным через защищённый GitHub Environment. |
-| TS-026 | P2 | open | Code quality | Release build имеет четыре warning: nullable `Group.CreatedBy`, два `async` метода без `await`, и XML `param` с неверным именем в `ExpensesController`. Перед включением warning-as-error их нужно устранить. |
+| TS-026 | P2 | open | Code quality | Release build имеет два compiler warning: nullable `Group.CreatedBy` и XML `param` с неверным именем в `ExpensesController`. Перед включением warning-as-error их нужно устранить. |
 | TS-027 | P1 | open | Bot integration | Защищённые API endpoints теперь требуют Telegram Mini App auth. У Go-бота пока нет отдельной server-to-server identity, поэтому его API-вызовы нужно адаптировать до следующего production запуска. Не добавлять постоянный обход через подстановку user ID. |
+| TS-028 | P2 | fixed | Dependencies | Миграция на .NET 10 выявила восемь CVE в транзитивном `System.Security.Cryptography.Xml` 9.0.0. Источником были лишние EF design-time пакеты в persistence-проекте; они удалены, а `dotnet-ef` закреплён в tool manifest. |
 
 ## Открытые продуктовые решения
 
