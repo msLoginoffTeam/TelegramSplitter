@@ -8,8 +8,9 @@ public class ExpenseResponseDto
     public Guid Id { get; set; }
     public string Title { get; set; } = null!;
     public decimal TotalAmount { get; set; }
-    public Guid CreatedById { get; set; }
-    public string? CreatedByName { get; set; }
+    public Guid PayerId { get; set; }
+    public string? PayerName { get; set; }
+    public Guid CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsDraft { get; set; }
     public List<ExpenseShareResponseDto> Shares { get; set; } = new();

@@ -12,6 +12,7 @@ namespace Persistence
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<Group> Groups { get; set; } = null!;
         public DbSet<UserGroup> UserGroups { get; set; } = null!;
+        public DbSet<GroupMemberPermission> GroupMemberPermissions { get; set; } = null!;
         public DbSet<Expense> Expenses { get; set; } = null!;
         public DbSet<ExpenseShare> ExpenseShares { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
@@ -33,6 +34,16 @@ namespace Persistence
             {
                 b.HasKey(g => g.Id);
                 b.Property(g => g.TelegramChatId);
+                b
+                    .HasOne(g => g.CreatedBy)
+                    .WithMany(u => u.GroupsCreated)
+                    .HasForeignKey(g => g.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+                b
+                    .HasOne(g => g.Owner)
+                    .WithMany(u => u.GroupsOwned)
+                    .HasForeignKey(g => g.OwnerId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // UserGroup (many-to-many)
@@ -51,6 +62,16 @@ namespace Persistence
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            modelBuilder.Entity<GroupMemberPermission>(b =>
+            {
+                b.HasKey(p => new { p.GroupId, p.UserId, p.Permission });
+                b
+                    .HasOne(p => p.Membership)
+                    .WithMany(m => m.Permissions)
+                    .HasForeignKey(p => new { p.UserId, p.GroupId })
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // Expense
             modelBuilder.Entity<Expense>(b =>
             {
@@ -63,9 +84,14 @@ namespace Persistence
                     .OnDelete(DeleteBehavior.Cascade);
 
                 b
-                    .HasOne(e => e.CreatedBy)
+                    .HasOne(e => e.Payer)
+                    .WithMany(u => u.ExpensesPaid)
+                    .HasForeignKey(e => e.PayerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                b
+                    .HasOne(e => e.CreatedByUser)
                     .WithMany(u => u.ExpensesCreated)
-                    .HasForeignKey(e => e.CreatedById)
+                    .HasForeignKey(e => e.CreatedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -108,6 +134,11 @@ namespace Persistence
                     .HasOne(p => p.ToUser)
                     .WithMany(u => u.PaymentsReceived)
                     .HasForeignKey(p => p.ToUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                b
+                    .HasOne(p => p.CreatedByUser)
+                    .WithMany(u => u.PaymentsCreated)
+                    .HasForeignKey(p => p.CreatedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
         }

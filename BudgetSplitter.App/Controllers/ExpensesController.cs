@@ -1,3 +1,4 @@
+using BudgetSplitter.App.Authorization;
 using BudgetSplitter.App.Services.ExpenseService;
 using BudgetSplitter.Common.Dtos;
 using BudgetSplitter.Common.Dtos.Request;
@@ -16,7 +17,13 @@ namespace BudgetSplitter.App.Controllers
     public class ExpensesController : ControllerBase
     {
         private readonly IExpenseService _expenseService;
-        public ExpensesController(IExpenseService expenseService) => _expenseService = expenseService;
+        private readonly ICurrentUserService _currentUser;
+
+        public ExpensesController(IExpenseService expenseService, ICurrentUserService currentUser)
+        {
+            _expenseService = expenseService;
+            _currentUser = currentUser;
+        }
 
         /// <summary>
         /// Retrieves all confirmed expenses in the group, optionally filtered by a specific user.
@@ -68,7 +75,8 @@ namespace BudgetSplitter.App.Controllers
             Guid groupId,
             [FromBody] CreateExpenseRequestDto dto)
         {
-            var response = await _expenseService.CreateExpenseAsync(groupId, dto);
+            var user = await _currentUser.GetRequiredUserAsync();
+            var response = await _expenseService.CreateExpenseAsync(groupId, dto, user.Id);
             return Ok(response);
         }
 

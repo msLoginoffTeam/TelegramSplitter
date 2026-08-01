@@ -20,6 +20,10 @@ public class Payment
     public Guid ToUserId { get; set; }
     public User ToUser { get; set; } = null!;
 
+    [Required]
+    public Guid CreatedByUserId { get; set; }
+    public User CreatedByUser { get; set; } = null!;
+
     [Column(TypeName = "decimal(18,2)")]
     public decimal Amount { get; set; }
     

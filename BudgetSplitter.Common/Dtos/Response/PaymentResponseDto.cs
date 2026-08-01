@@ -8,6 +8,7 @@ public class PaymentResponseDto
     public string? FromUserName { get; set; }
     public Guid ToUserId { get; set; }
     public string? ToUserName { get; set; }
+    public Guid CreatedByUserId { get; set; }
     public decimal Amount { get; set; }
     public DateTime Timestamp { get; set; }
 }

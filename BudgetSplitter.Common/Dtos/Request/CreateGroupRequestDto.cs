@@ -7,6 +7,5 @@ public class CreateGroupRequestDto
 {
     public string Title { get; set; } = null!;
     
-    public long CreatedByTelegramId { get; set; }
     public long? TelegramChatId { get; set; }
 }

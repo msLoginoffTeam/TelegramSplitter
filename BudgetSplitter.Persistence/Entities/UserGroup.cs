@@ -12,4 +12,6 @@ public class UserGroup
     [Key, Column(Order = 1)]
     public Guid GroupId { get; set; }
     public Group Group { get; set; } = null!;
+
+    public ICollection<GroupMemberPermission> Permissions { get; set; } = new List<GroupMemberPermission>();
 }

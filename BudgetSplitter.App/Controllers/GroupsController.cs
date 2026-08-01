@@ -1,3 +1,4 @@
+using BudgetSplitter.App.Authorization;
 using BudgetSplitter.App.Services.GroupService;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
@@ -15,7 +16,12 @@ namespace BudgetSplitter.App.Controllers
     public class GroupsController : ControllerBase
     {
         private readonly IGroupService _groupService;
-        public GroupsController(IGroupService groupService) => _groupService = groupService;
+        private readonly ICurrentUserService _currentUser;
+        public GroupsController(IGroupService groupService, ICurrentUserService currentUser)
+        {
+            _groupService = groupService;
+            _currentUser = currentUser;
+        }
 
         /// <summary>
         /// Retrieves all groups the specified user belongs to.
@@ -23,9 +29,10 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="userTelegramId">Telegram ID of the user.</param>
         /// <returns>List of GroupOverviewResponseDto for the user’s groups.</returns>
         [HttpGet("my")]
-        public async Task<ActionResult<IEnumerable<GroupOverviewResponseDto>>> GetMyGroups(long userTelegramId)
+        public async Task<ActionResult<IEnumerable<GroupOverviewResponseDto>>> GetMyGroups()
         {
-            var groups = await _groupService.GetMyGroupsAsync(userTelegramId);
+            var user = await _currentUser.GetRequiredUserAsync();
+            var groups = await _groupService.GetMyGroupsAsync(user.Id);
             return Ok(groups);
         }
         
@@ -36,7 +43,8 @@ namespace BudgetSplitter.App.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<GroupOverviewResponseDto>>> GetGroups(long telegramChatId)
         {
-            var groups = await _groupService.GetGroupsAsync(telegramChatId);
+            var user = await _currentUser.GetRequiredUserAsync();
+            var groups = await _groupService.GetGroupsAsync(telegramChatId, user.Id);
             return Ok(groups);
         }
 
@@ -60,7 +68,8 @@ namespace BudgetSplitter.App.Controllers
         [HttpPost]
         public async Task<ActionResult<GroupResponseDto>> CreateGroup([FromBody] CreateGroupRequestDto dto)
         {
-            return Ok(await _groupService.CreateGroupAsync(dto));
+            var user = await _currentUser.GetRequiredUserAsync();
+            return Ok(await _groupService.CreateGroupAsync(dto, user));
         }
         
         /// <summary>

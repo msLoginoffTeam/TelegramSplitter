@@ -13,8 +13,12 @@ public class Expense
     public Group Group { get; set; } = null!;
 
     [Required]
-    public Guid CreatedById { get; set; }
-    public User CreatedBy { get; set; } = null!;
+    public Guid PayerId { get; set; }
+    public User Payer { get; set; } = null!;
+
+    [Required]
+    public Guid CreatedByUserId { get; set; }
+    public User CreatedByUser { get; set; } = null!;
 
     [Required, MaxLength(300)]
     public string Title { get; set; } = null!;

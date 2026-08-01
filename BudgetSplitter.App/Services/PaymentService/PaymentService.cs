@@ -84,7 +84,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 GroupId = groupId,
                 Expense =  expense,
                 FromUserId = dto.FromUserId,
-                ToUserId = expense.CreatedById,
+                ToUserId = expense.PayerId,
                 Amount = dto.Amount,
                 Timestamp = DateTime.UtcNow
             };

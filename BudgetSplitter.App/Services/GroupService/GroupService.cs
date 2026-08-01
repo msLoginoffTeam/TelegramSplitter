@@ -1,6 +1,7 @@
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using BudgetSplitter.Common.Exceptions;
+using BudgetSplitter.Common.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 
@@ -11,18 +12,10 @@ public class GroupService : IGroupService
     private readonly AppDbContext _db;
     public GroupService(AppDbContext db) => _db = db;
 
-    public async Task<IEnumerable<GroupOverviewResponseDto>> GetMyGroupsAsync(long telegramId)
+    public async Task<IEnumerable<GroupOverviewResponseDto>> GetMyGroupsAsync(Guid userId)
     {
-        var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.TelegramId == telegramId);
-
-        if (user == null)
-        {
-            throw new NotFoundException($"User with telegramId {telegramId} not found");
-        }
-
         var groups = await _db.Groups
-            .Where(g => g.CreatedBy.Id == user.Id || g.UserGroups.Any(ug => ug.UserId == user.Id))
+            .Where(g => g.UserGroups.Any(ug => ug.UserId == userId))
             .AsNoTracking()
             .ToListAsync();
 
@@ -34,10 +27,10 @@ public class GroupService : IGroupService
             });
     }
 
-    public async Task<IEnumerable<GroupOverviewResponseDto>> GetGroupsAsync(long telegramChatId)
+    public async Task<IEnumerable<GroupOverviewResponseDto>> GetGroupsAsync(long telegramChatId, Guid userId)
     {
         var groups = await _db.Groups
-            .Where(g => g.TelegramChatId == telegramChatId)
+            .Where(g => g.TelegramChatId == telegramChatId && g.UserGroups.Any(ug => ug.UserId == userId))
             .AsNoTracking()
             .ToListAsync();
         
@@ -76,22 +69,23 @@ public class GroupService : IGroupService
         };
     }
 
-    public async Task<GroupResponseDto> CreateGroupAsync(CreateGroupRequestDto dto)
+    public async Task<GroupResponseDto> CreateGroupAsync(CreateGroupRequestDto dto, User creator)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.TelegramId == dto.CreatedByTelegramId);
-
-        if (user == null)
-        {
-            throw new NotFoundException($"User with telegramId {dto.CreatedByTelegramId} not found");
-        }
-        
         var group = new Group
         {
             Title = dto.Title,
             TelegramChatId = dto.TelegramChatId,
-            CreatedBy = user
+            CreatedById = creator.Id,
+            OwnerId = creator.Id
         };
         _db.Groups.Add(group);
+        _db.UserGroups.Add(new UserGroup { Group = group, User = creator });
+        _db.GroupMemberPermissions.AddRange(GroupRolePresets.All.Select(permission => new GroupMemberPermission
+        {
+            GroupId = group.Id,
+            UserId = creator.Id,
+            Permission = permission
+        }));
         await _db.SaveChangesAsync();
         
         return await GetGroupAsync(group.Id);
@@ -133,6 +127,13 @@ public class GroupService : IGroupService
                 Group = group,
                 User = user
             });
+            _db.GroupMemberPermissions.AddRange(GroupRolePresets.GetPermissions(GroupRole.Member)
+                .Select(permission => new GroupMemberPermission
+                {
+                    GroupId = group.Id,
+                    UserId = user.Id,
+                    Permission = permission
+                }));
         }
         else
         {

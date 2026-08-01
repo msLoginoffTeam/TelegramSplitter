@@ -23,8 +23,9 @@ public class ExpenseService : IExpenseService
             Id = e.Id,
             Title = e.Title,
             TotalAmount = e.TotalAmount,
-            CreatedById = e.CreatedById,
-            CreatedByName = e.CreatedBy.DisplayName,
+            PayerId = e.PayerId,
+            PayerName = e.Payer.DisplayName,
+            CreatedByUserId = e.CreatedByUserId,
             CreatedAt = e.CreatedAt,
             IsDraft = e.IsDraft,
             Shares = e.Shares.Select(s => new ExpenseShareResponseDto
@@ -41,7 +42,7 @@ public class ExpenseService : IExpenseService
     {
         var expense = await _db.Expenses
             .Where(x => x.GroupId == groupId && x.Id == expenseId)
-            .Include(x => x.Shares).ThenInclude(expenseShare => expenseShare.User).Include(expense => expense.CreatedBy)
+            .Include(x => x.Shares).ThenInclude(expenseShare => expenseShare.User).Include(expense => expense.Payer)
             .AsNoTracking()
             .FirstOrDefaultAsync();
         if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
@@ -51,8 +52,9 @@ public class ExpenseService : IExpenseService
             Id = expense.Id,
             Title = expense.Title,
             TotalAmount = expense.TotalAmount,
-            CreatedById = expense.CreatedById,
-            CreatedByName = expense.CreatedBy.DisplayName,
+            PayerId = expense.PayerId,
+            PayerName = expense.Payer.DisplayName,
+            CreatedByUserId = expense.CreatedByUserId,
             CreatedAt = expense.CreatedAt,
             IsDraft = expense.IsDraft,
             Shares = expense.Shares.Select(s => new ExpenseShareResponseDto
@@ -65,14 +67,15 @@ public class ExpenseService : IExpenseService
         };
     }
 
-    public async Task<ExpenseResponseDto> CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto)
+    public async Task<ExpenseResponseDto> CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto, Guid createdByUserId)
     {
         var expense = new Expense
         {
             GroupId = groupId,
             Title = dto.Title,
             TotalAmount = dto.TotalAmount,
-            CreatedById = dto.CreatedById,
+            PayerId = dto.PayerId,
+            CreatedByUserId = createdByUserId,
             CreatedAt = DateTime.UtcNow,
             IsDraft = dto.IsDraft
         };
@@ -100,7 +103,7 @@ public class ExpenseService : IExpenseService
         _db.ExpenseShares.Add(new ExpenseShare
         {
             ExpenseId = expense.Id,
-            UserId = expense.CreatedById,
+            UserId = expense.PayerId,
             Amount = remainder,
             IsPaid = true
         });
@@ -124,17 +127,17 @@ public class ExpenseService : IExpenseService
     public async Task UpdateExpenseAsync(Guid expenseId, decimal totalAmount)
     {
         var expense = await _db.Expenses
-            .Include(expense => expense.CreatedBy).Include(expense => expense.Shares)
+            .Include(expense => expense.Payer).Include(expense => expense.Shares)
             .ThenInclude(expenseShare => expenseShare.User)
             .FirstOrDefaultAsync(e => e.Id == expenseId);
         if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
 
         var value = totalAmount - expense.TotalAmount;
 
-        var creator = expense.Shares.FirstOrDefault(x => x.User == expense.CreatedBy)!;
-        creator.Amount += value;
+        var payer = expense.Shares.FirstOrDefault(x => x.User == expense.Payer)!;
+        payer.Amount += value;
 
-        if (creator.Amount < 0)
+        if (payer.Amount < 0)
         {
             throw new BadRequestException(
                 $"Сумма долей превышает новую общую сумму {totalAmount}");
@@ -192,7 +195,7 @@ public class ExpenseService : IExpenseService
             throw new BadRequestException($"User {share.UserId} is already a participant of expense {expenseId}");
 
         var sumExisting = await _db.ExpenseShares
-            .Where(s => s.ExpenseId == expenseId && s.UserId != expense.CreatedById)
+            .Where(s => s.ExpenseId == expenseId && s.UserId != expense.PayerId)
             .SumAsync(s => s.Amount);
 
         var totalOthers = sumExisting + share.Amount;
@@ -210,14 +213,14 @@ public class ExpenseService : IExpenseService
 
         var remainder = expense.TotalAmount - totalOthers;
         var payerShare = await _db.ExpenseShares
-            .FirstOrDefaultAsync(s => s.ExpenseId == expenseId && s.UserId == expense.CreatedById);
+            .FirstOrDefaultAsync(s => s.ExpenseId == expenseId && s.UserId == expense.PayerId);
 
         if (payerShare == null)
         {
             _db.ExpenseShares.Add(new ExpenseShare
             {
                 ExpenseId = expenseId,
-                UserId = expense.CreatedById,
+                UserId = expense.PayerId,
                 Amount = remainder,
                 IsPaid = true
             });
@@ -243,7 +246,7 @@ public class ExpenseService : IExpenseService
 
         var expense = share.Expense;
         var sumOthers = await _db.ExpenseShares
-            .Where(x => x.ExpenseId == expenseId && x.UserId != expense.CreatedById)
+            .Where(x => x.ExpenseId == expenseId && x.UserId != expense.PayerId)
             .SumAsync(x => x.Amount);
 
         sumOthers = sumOthers - share.Amount + shareDto.Amount;
@@ -255,14 +258,14 @@ public class ExpenseService : IExpenseService
 
         var remainder = expense.TotalAmount - sumOthers;
         var payerShare = await _db.ExpenseShares
-            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.CreatedById);
+            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.PayerId);
 
         if (payerShare == null)
         {
             _db.ExpenseShares.Add(new ExpenseShare
             {
                 ExpenseId = expenseId,
-                UserId = expense.CreatedById,
+                UserId = expense.PayerId,
                 Amount = remainder,
                 IsPaid = true
             });
@@ -290,19 +293,19 @@ public class ExpenseService : IExpenseService
 
         var expense = share.Expense;
         var sumOthers = await _db.ExpenseShares
-            .Where(x => x.ExpenseId == expenseId && x.UserId != expense.CreatedById)
+            .Where(x => x.ExpenseId == expenseId && x.UserId != expense.PayerId)
             .SumAsync(x => x.Amount);
 
         var remainder = expense.TotalAmount - sumOthers;
         var payerShare = await _db.ExpenseShares
-            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.CreatedById);
+            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.PayerId);
 
         if (payerShare == null)
         {
             _db.ExpenseShares.Add(new ExpenseShare
             {
                 ExpenseId = expenseId,
-                UserId = expense.CreatedById,
+                UserId = expense.PayerId,
                 Amount = remainder,
                 IsPaid = true
             });
