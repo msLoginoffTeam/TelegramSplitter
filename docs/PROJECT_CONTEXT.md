@@ -1,6 +1,6 @@
 # Telegram Splitter — контекст проекта
 
-Обновлено: 2026-08-01.
+Обновлено: 2026-08-02.
 
 ## Карта знаний
 
@@ -25,9 +25,9 @@
 ## Техническое состояние
 
 - ASP.NET Core / EF Core / PostgreSQL 16, target `net9.0`.
-- Backend собирается успешно; остаются два compiler warning: nullable `Group.CreatedBy` и неверный XML `param` в `ExpensesController`.
+- Backend собирается успешно, но остаются четыре compiler warning: nullable navigation `Group.CreatedBy`, два `async` без `await` и неверный XML `param` в `ExpensesController`.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
-- Docker CLI установлен; Docker daemon во время проверки не был запущен.
+- Docker CLI и OrbStack доступны; Compose разделён между репозиториями.
 - В активной копии есть пользовательское незакоммиченное изменение `appsettings.Development.json`; не перезаписывать и не выводить его секреты.
 
 ## Цель продукта
@@ -54,7 +54,7 @@ Backend, Mini App и Telegram adapter развиваются в отдельны
   tg_splitter_adapter/         # github.com/msLoginoffTeam/tg_splitter_adapter
 ```
 
-Frontend не пишет API-контракты вручную: OpenAPI snapshot и TypeScript/React Query client генерируются скриптом. Сгенерированный код или snapshot фиксируется в frontend-репозитории, а CI проверяет отсутствие drift. Backend Compose остаётся ответственным за db+api; frontend имеет свой Dockerfile/dev server. При необходимости единый локальный `compose.full.yaml` в backend может ссылаться на соседнюю frontend-папку относительным путём без создания третьего orchestration-репозитория.
+Frontend не пишет API-контракты вручную: OpenAPI snapshot и TypeScript/React Query client генерируются скриптом. Backend `docker-compose.yml` поднимает только db+api; frontend имеет независимый Compose и настраивает адрес API через `API_UPSTREAM`. Подробности: `docs/LOCAL_DEVELOPMENT.md`.
 
 ## Направление реализации
 
@@ -63,7 +63,7 @@ Frontend не пишет API-контракты вручную: OpenAPI snapshot
 3. Нормализовать OpenAPI и генерировать Go/TypeScript clients с CI drift check.
 4. Реализовать отдельный React + TypeScript Mini App: список групп, dashboard, expense wizard, payments, transfers, members/settings.
 5. Сократить Go-бот до Telegram entrypoint: `/start`, запуск Mini App, group deep links, приглашения, уведомления и публикация итогов.
-6. Поднять единый локальный Compose, затем E2E и только после этого VPS deployment.
+6. Проверить независимые Compose-сценарии backend и frontend, затем E2E и только после этого VPS deployment.
 
 ## Запуск Mini App из Telegram
 

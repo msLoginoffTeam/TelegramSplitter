@@ -17,18 +17,13 @@ _ReSharper*/
 *.log
 
 # ===== ASP.NET / IIS =====
-appsettings.*.json   # оставить только в коде шаблон, реальные файлы сбрасывать
-launchSettings.json
+BudgetSplitter.App/appsettings.Local.json
+BudgetSplitter.App/Properties/launchSettings.json
 
 # ===== Secrets / Env =====
 .env
 .env.local
 secrets.json
-
-# ===== Docker =====
-**/docker-compose.override.yml
-**/docker-compose.*.yml
-**/Dockerfile.*
 
 # ===== OS / Editor =====
 .DS_Store

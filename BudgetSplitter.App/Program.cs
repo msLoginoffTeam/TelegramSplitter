@@ -12,7 +12,7 @@ using Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
 var conn = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -70,9 +70,6 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
     })
 );
 
-Console.WriteLine("==== Connection string ====");
-Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
-
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -85,6 +82,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 
 app.Run();

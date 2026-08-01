@@ -1,53 +1,40 @@
-﻿version: '3.8'
+name: telegram-splitter-backend
 
 services:
   db:
     image: postgres:16-alpine
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-splitterdb}
     ports:
-      - "127.0.0.1:54321:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-54321}:5432"
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 12
     volumes:
-      - db_data:/var/lib/postgresql/data
-    networks:
-      - my-network
+      - telegram-splitter-postgres-data:/var/lib/postgresql/data
 
-  telegram-splitter-app:
-    container_name: telegram-splitter-app
-    image: maxloginoff/telegram-splitter-app:${APP_VERSION:-latest}
+  api:
     build:
       context: .
       dockerfile: BudgetSplitter.App/Dockerfile
       args:
-        BUILD_CONFIGURATION: ${BUILD_CONFIGURATION:-Debug}
-    restart: on-failure
+        BUILD_CONFIGURATION: ${BUILD_CONFIGURATION:-Release}
+    restart: unless-stopped
     environment:
-      ConnectionStrings__DefaultConnection: >
-        Server=db;
-        Database=${POSTGRES_DB:-splitterdb};
-        Username=${POSTGRES_USER:-postgres};
-        Password=${POSTGRES_PASSWORD:-postgres}
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: >-
+        Host=db;Port=5432;Database=${POSTGRES_DB:-splitterdb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     ports:
-      - "127.0.0.1:5050:8080"
+      - "127.0.0.1:${API_PORT:-5050}:8080"
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - my-network
-
-networks:
-  my-network:
-    external: true
 
 volumes:
-  db_data:
-    driver: local
+  telegram-splitter-postgres-data:
