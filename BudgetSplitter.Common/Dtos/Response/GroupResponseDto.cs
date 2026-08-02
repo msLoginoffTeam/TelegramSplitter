@@ -8,5 +8,5 @@ public class GroupResponseDto
     public Guid Id { get; set; }
     public string Title { get; set; } = null!;
     public long? TelegramChatId { get; set; }
-    public List<UserResponseDto> Users { get; set; } = new();
+    public List<GroupMemberResponseDto> Members { get; set; } = new();
 }

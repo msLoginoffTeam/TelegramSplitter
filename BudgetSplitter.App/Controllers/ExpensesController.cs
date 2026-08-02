@@ -1,7 +1,9 @@
+using BudgetSplitter.App.Authorization;
 using BudgetSplitter.App.Services.ExpenseService;
 using BudgetSplitter.Common.Dtos;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using BudgetSplitter.Common.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,11 +14,19 @@ namespace BudgetSplitter.App.Controllers
     /// </summary>
     [ApiController]
     [Authorize]
-    [Route("api/expenses")]
+    [Route("api/groups/{groupId:guid}/expenses")]
     public class ExpensesController : ControllerBase
     {
         private readonly IExpenseService _expenseService;
-        public ExpensesController(IExpenseService expenseService) => _expenseService = expenseService;
+        private readonly ICurrentUserService _currentUser;
+        private readonly IGroupAuthorizationService _groupAuthorization;
+
+        public ExpensesController(IExpenseService expenseService, ICurrentUserService currentUser, IGroupAuthorizationService groupAuthorization)
+        {
+            _expenseService = expenseService;
+            _currentUser = currentUser;
+            _groupAuthorization = groupAuthorization;
+        }
 
         /// <summary>
         /// Retrieves all confirmed expenses in the group, optionally filtered by a specific user.
@@ -24,7 +34,8 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="groupId">ID of the group.</param>
         /// <param name="userId">Optional user ID to filter expenses by payer.</param>
         /// <returns>List of ExpenseResponseDto.</returns>
-        [HttpGet("group/{groupId:guid}")]
+        [HttpGet]
+        [RequireGroupPermission(GroupPermission.ViewGroup)]
         public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetExpenses(
             Guid groupId,
             [FromQuery] Guid? userId = null)
@@ -51,6 +62,7 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="expenseId">ID of the expense.</param>
         /// <returns>ExpenseResponseDto with full expense details.</returns>
         [HttpGet("{expenseId:guid}")]
+        [RequireGroupPermission(GroupPermission.ViewGroup)]
         public async Task<ActionResult<ExpenseResponseDto>> GetExpense(Guid groupId, Guid expenseId)
         {
             var expense = await _expenseService.GetExpenseByIdAsync(groupId, expenseId);
@@ -63,27 +75,30 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="groupId">ID of the group.</param>
         /// <param name="dto">Data for creating the expense.</param>
         /// <returns>The created ExpenseResponseDto.</returns>
-        [HttpPost("group/{groupId:guid}")]
+        [HttpPost]
+        [RequireGroupPermission(GroupPermission.CreateExpense)]
         public async Task<ActionResult<ExpenseResponseDto>> CreateExpense(
             Guid groupId,
             [FromBody] CreateExpenseRequestDto dto)
         {
-            var response = await _expenseService.CreateExpenseAsync(groupId, dto);
+            var user = await _currentUser.GetRequiredUserAsync();
+            var response = await _expenseService.CreateExpenseAsync(groupId, dto, user.Id);
             return Ok(response);
         }
 
         /// <summary>
         /// Updates an existing expense’s title
         /// </summary>
+        /// <param name="groupId">ID of the group containing the expense.</param>
         /// <param name="expenseId">ID of the expense to update.</param>
-        /// <param name="dto">Fields to update.</param>
-        /// <param name="title"></param>
+        /// <param name="title">New title.</param>
         [HttpPut("{expenseId:guid}/title")]
         public async Task<IActionResult> UpdateExpenseTitle(
-            //Guid groupId,
+            Guid groupId,
             Guid expenseId,
             [FromBody] string title)
         {
+            await _groupAuthorization.EnsureExpensePermissionAsync(groupId, expenseId, GroupPermission.UpdateOwnExpense, GroupPermission.UpdateAnyExpense);
             await _expenseService.UpdateExpenseAsync(expenseId, title);
             return Ok();
         }
@@ -91,14 +106,16 @@ namespace BudgetSplitter.App.Controllers
         /// <summary>
         /// Updates an existing expense’s total amount.
         /// </summary>
+        /// <param name="groupId">ID of the group containing the expense.</param>
         /// <param name="expenseId">ID of the expense to update.</param>
-        /// <param name="totalAmount"></param>
+        /// <param name="totalAmount">New total amount.</param>
         [HttpPut("{expenseId:guid}/totalAmount")]
         public async Task<IActionResult> UpdateExpenseTotalAmount(
-            //Guid groupId,
+            Guid groupId,
             Guid expenseId,
             [FromBody] decimal totalAmount)
         {
+            await _groupAuthorization.EnsureExpensePermissionAsync(groupId, expenseId, GroupPermission.UpdateOwnExpense, GroupPermission.UpdateAnyExpense);
             await _expenseService.UpdateExpenseAsync(expenseId, totalAmount);
             return Ok();
         }
@@ -111,6 +128,7 @@ namespace BudgetSplitter.App.Controllers
         [HttpDelete("{expenseId:guid}")]
         public async Task<IActionResult> DeleteExpense(Guid groupId, Guid expenseId)
         {
+            await _groupAuthorization.EnsureExpensePermissionAsync(groupId, expenseId, GroupPermission.DeleteOwnExpense, GroupPermission.DeleteAnyExpense);
             await _expenseService.DeleteExpenseAsync(groupId, expenseId);
             return Ok();
         }
@@ -122,6 +140,7 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="expenseId">ID of the expense.</param>
         /// <returns>List of ExpenseShareResponseDto.</returns>
         [HttpGet("{expenseId:guid}/participants")]
+        [RequireGroupPermission(GroupPermission.ViewGroup)]
         public async Task<ActionResult<IEnumerable<ExpenseShareResponseDto>>> GetExpenseParticipants(
             Guid groupId,
             Guid expenseId)
@@ -142,6 +161,7 @@ namespace BudgetSplitter.App.Controllers
             Guid expenseId,
             [FromBody] ExpenseShareCreateDto share)
         {
+            await _groupAuthorization.EnsureExpensePermissionAsync(groupId, expenseId, GroupPermission.UpdateOwnExpense, GroupPermission.UpdateAnyExpense);
             await _expenseService.AddExpenseParticipantsAsync(groupId, expenseId, share);
             return Ok();
         }
@@ -158,6 +178,7 @@ namespace BudgetSplitter.App.Controllers
             Guid expenseId,
             [FromBody] ExpenseShareCreateDto share)
         {
+            await _groupAuthorization.EnsureExpensePermissionAsync(groupId, expenseId, GroupPermission.UpdateOwnExpense, GroupPermission.UpdateAnyExpense);
             await _expenseService.UpdateExpenseParticipantAsync(groupId, expenseId, share);
             return Ok();
         }
@@ -174,6 +195,7 @@ namespace BudgetSplitter.App.Controllers
             Guid expenseId,
             Guid userId)
         {
+            await _groupAuthorization.EnsureExpensePermissionAsync(groupId, expenseId, GroupPermission.UpdateOwnExpense, GroupPermission.UpdateAnyExpense);
             await _expenseService.RemoveExpenseParticipantAsync(groupId, expenseId, userId);
             return Ok();
         }

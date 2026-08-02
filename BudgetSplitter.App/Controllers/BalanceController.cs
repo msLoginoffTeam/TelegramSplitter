@@ -1,5 +1,6 @@
 using BudgetSplitter.App.Services.BalanceService;
 using BudgetSplitter.Common.Dtos.Response;
+using BudgetSplitter.App.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,6 +20,7 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="groupId">ID of the group to get balances for.</param>
         /// <returns>BalanceResponseDto containing each user’s net balance.</returns>
         [HttpGet("balance")]
+        [RequireGroupPermission(BudgetSplitter.Common.Authorization.GroupPermission.ViewGroup)]
         public async Task<ActionResult<BalanceResponseDto>> GetBalance(Guid groupId)
         {
             return Ok(await _balances.GetBalancesAsync(groupId));
@@ -34,6 +36,7 @@ namespace BudgetSplitter.App.Controllers
         /// </param>
         /// <returns>TransferSuggestionsResponseDto with transfer recommendations.</returns>
         [HttpGet("transfers")]
+        [RequireGroupPermission(BudgetSplitter.Common.Authorization.GroupPermission.ViewGroup)]
         public async Task<ActionResult<TransferSuggestionsResponseDto>> GetSuggestedTransfers(
             Guid groupId,
             [FromQuery] bool useNpAlgorithm = false)
@@ -47,6 +50,7 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="groupId">ID of the group to retrieve history for.</param>
         /// <returns>List of OperationHistoryResponseDto entries in chronological order.</returns>
         [HttpGet("history")]
+        [RequireGroupPermission(BudgetSplitter.Common.Authorization.GroupPermission.ViewGroup)]
         public async Task<ActionResult<IEnumerable<OperationHistoryResponseDto>>> GetHistory(
             Guid groupId)
         {

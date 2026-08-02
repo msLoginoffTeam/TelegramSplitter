@@ -1,5 +1,6 @@
 using System.Reflection;
 using BudgetSplitter.App.Authentication;
+using BudgetSplitter.App.Authorization;
 using BudgetSplitter.App.Middlewares;
 using BudgetSplitter.App.Services.BalanceService;
 using BudgetSplitter.App.Services.ExpenseService;
@@ -25,7 +26,8 @@ builder.Configuration.AddEnvironmentVariables();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options => options.Filters.AddService<GroupPermissionAuthorizationFilter>());
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<TelegramAuthOptions>(
     builder.Configuration.GetSection(TelegramAuthOptions.SectionName));
@@ -70,6 +72,9 @@ builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IGroupAuthorizationService, GroupAuthorizationService>();
+builder.Services.AddScoped<GroupPermissionAuthorizationFilter>();
 
 builder.Services.AddDbContext<AppDbContext>(opts =>
 {

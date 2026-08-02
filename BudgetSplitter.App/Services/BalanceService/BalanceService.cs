@@ -16,9 +16,9 @@ public class BalanceService : IBalanceService
             .Where(e => e.GroupId == groupId)
             .Select(e => new
             {
-                Creator = e.CreatedById,
+                Creator = e.PayerId,
                 CreditPart = e.TotalAmount
-                             - e.Shares.Single(s => s.UserId == e.CreatedById).Amount
+                             - e.Shares.Single(s => s.UserId == e.PayerId).Amount
             })
             .GroupBy(x => x.Creator)
             .Select(g => new { UserId = g.Key, Credit = g.Sum(x => x.CreditPart) })
@@ -26,7 +26,7 @@ public class BalanceService : IBalanceService
 
         var owesByUser = await _db.ExpenseShares
             .Where(es => es.Expense.GroupId == groupId
-                         && es.UserId != es.Expense.CreatedById)
+                         && es.UserId != es.Expense.PayerId)
             .GroupBy(es => es.UserId)
             .Select(g => new { UserId = g.Key, Owes = g.Sum(es => es.Amount) })
             .ToDictionaryAsync(x => x.UserId, x => x.Owes);

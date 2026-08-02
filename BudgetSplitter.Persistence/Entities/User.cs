@@ -14,8 +14,12 @@ public class User
     public string? DisplayName { get; set; }
 
     public ICollection<UserGroup> UserGroups { get; set; } = new List<UserGroup>();
+    public ICollection<Group> GroupsCreated { get; set; } = new List<Group>();
+    public ICollection<Group> GroupsOwned { get; set; } = new List<Group>();
+    public ICollection<Expense> ExpensesPaid { get; set; } = new List<Expense>();
     public ICollection<Expense> ExpensesCreated { get; set; } = new List<Expense>();
     public ICollection<ExpenseShare> Shares { get; set; } = new List<ExpenseShare>();
     public ICollection<Payment> PaymentsSent { get; set; } = new List<Payment>();
     public ICollection<Payment> PaymentsReceived { get; set; } = new List<Payment>();
+    public ICollection<Payment> PaymentsCreated { get; set; } = new List<Payment>();
 }

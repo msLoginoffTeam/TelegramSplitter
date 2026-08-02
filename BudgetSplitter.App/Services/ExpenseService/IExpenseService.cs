@@ -15,7 +15,7 @@ public interface IExpenseService
 
     // создаёт черновик или сразу подтверждённую трату
     Task<ExpenseResponseDto> 
-        CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto);
+        CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto, Guid createdByUserId);
 
     // редактирует поля самой траты (metadata)
     Task UpdateExpenseAsync(Guid expenseId, decimal amount);

@@ -10,8 +10,14 @@ public class Group
     [Required, MaxLength(200)]
     public string Title { get; set; } = null!;
     public long? TelegramChatId { get; set; }
-    
-    public User CreatedBy { get; set; }
+
+    [Required]
+    public Guid CreatedById { get; set; }
+    public User CreatedBy { get; set; } = null!;
+
+    [Required]
+    public Guid OwnerId { get; set; }
+    public User Owner { get; set; } = null!;
 
     public ICollection<UserGroup> UserGroups { get; set; } = new List<UserGroup>();
     public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
