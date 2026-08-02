@@ -38,8 +38,8 @@ public sealed class ExpenseAndPaymentTests(PostgreSqlFixture database) : Integra
         Assert.Equal(memberId, expense.CreatedByUserId);
         Assert.Equal(ownerId, expense.PayerId);
         Assert.Equal(100, expense.Shares.Sum(share => share.Amount));
-        Assert.Contains(expense.Shares, share => share.UserId == ownerId && share.Amount == 70 && share.IsPaid);
-        Assert.Contains(expense.Shares, share => share.UserId == memberId && share.Amount == 30 && !share.IsPaid);
+        Assert.Contains(expense.Shares, share => share.UserId == ownerId && share.Amount == 70);
+        Assert.Contains(expense.Shares, share => share.UserId == memberId && share.Amount == 30);
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public sealed class ExpenseAndPaymentTests(PostgreSqlFixture database) : Integra
         var payment = await createResponse.Content.ReadFromJsonAsync<PaymentResponseDto>();
         Assert.NotNull(payment);
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
-        Assert.True(await GetShareIsPaidAsync(expenseId, memberId));
+        Assert.True(await GetShareIsPaidAsync(data.GroupId, expenseId, memberId));
 
         using var updateResponse = await SendAuthenticatedAsync(
             HttpMethod.Put,
@@ -235,23 +235,27 @@ public sealed class ExpenseAndPaymentTests(PostgreSqlFixture database) : Integra
             GroupTestTelegramIds.Member,
             JsonContent.Create(new UpdatePaymentRequestDto { Amount = 20 }));
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        Assert.False(await GetShareIsPaidAsync(expenseId, memberId));
+        Assert.False(await GetShareIsPaidAsync(data.GroupId, expenseId, memberId));
 
         using var deleteResponse = await SendAuthenticatedAsync(
             HttpMethod.Delete,
             $"/api/groups/{data.GroupId}/payments/{payment.Id}",
             GroupTestTelegramIds.Member);
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
-        Assert.False(await GetShareIsPaidAsync(expenseId, memberId));
+        Assert.False(await GetShareIsPaidAsync(data.GroupId, expenseId, memberId));
     }
 
-    private async Task<bool> GetShareIsPaidAsync(Guid expenseId, Guid userId)
+    private async Task<bool> GetShareIsPaidAsync(Guid groupId, Guid expenseId, Guid userId)
     {
-        await using var db = GroupTestData.CreateDbContext(Database);
-        return await db.ExpenseShares
-            .Where(share => share.ExpenseId == expenseId && share.UserId == userId)
-            .Select(share => share.IsPaid)
-            .SingleAsync();
+        using var response = await SendAuthenticatedAsync(
+            HttpMethod.Get,
+            $"/api/groups/{groupId}/expenses/{expenseId}",
+            GroupTestTelegramIds.Member);
+        var expense = await response.Content.ReadFromJsonAsync<ExpenseResponseDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(expense);
+        return expense.Shares.Single(share => share.UserId == userId).IsPaid;
     }
 
     private async Task<HttpResponseMessage> SendAuthenticatedAsync(HttpMethod method, string uri, long telegramId, HttpContent? content = null)

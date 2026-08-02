@@ -9,11 +9,11 @@
 | TS-003 | P0 | fixed | Backend | Удаление expense и participant сверяют переданный `groupId`, поэтому cross-group mutation отклоняется. |
 | TS-004 | P0 | fixed | Secrets | `Program.cs` больше не выводит connection string в stdout. |
 | TS-005 | P0 | fixed | Data | `CreateExpenseAsync` валидирует доли до сохранения и сохраняет expense со всеми shares одним `SaveChanges`. |
-| TS-006 | P0 | planned | Data | Создание расходов проверяет membership payer/share users и дубли в DTO. Для защиты от гонок всё ещё нужен unique index `(ExpenseId, UserId)`. |
-| TS-007 | P0 | planned | Money | Expense/payment validation теперь запрещает неположительные суммы, self-payment и пустой expense title. Всё ещё нет валюты группы и явных правил округления. |
-| TS-008 | P1 | open | Groups | Создатель группы не добавляется в `UserGroups`, поэтому детали/балансы могут его не показывать. |
-| TS-009 | P1 | open | Payments | `IsPaid` синхронизируется при create/update/delete payment, но изменение expense share пока не пересчитывает уже созданные платежи. |
-| TS-010 | P1 | open | Persistence | Payment–Expense использует shadow FK, а `ExpenseShare.Payments` создаёт второй неиспользуемый shadow FK `ExpenseShareId`; delete semantics неоднозначны. |
+| TS-006 | P0 | fixed | Data | Создание расходов проверяет membership payer/share users и дубли в DTO; migration `HardenMoneyIntegrity` добавляет unique index `(ExpenseId, UserId)`. |
+| TS-007 | P0 | fixed | Money | Expense/payment validation и DB constraints запрещают неположительные суммы, self-payment и пустой expense title. Для MVP валюта фиксирована: рубли. |
+| TS-008 | P1 | fixed | Groups | Создатель группы добавляется в `UserGroups` и получает полный набор owner permissions при создании группы. |
+| TS-009 | P1 | fixed | Payments | `IsPaid` больше не хранится: оно вычисляется из платежей на чтении. Изменение доли запрещено, если она станет меньше уже учтённых платежей; удаление участника с платежами также запрещено. |
+| TS-010 | P1 | fixed | Persistence | Payment–Expense использует явный nullable `ExpenseId` с каскадным удалением при удалении траты. Неиспользуемая shadow-связь payment→share удалена. |
 | TS-011 | P1 | open | API | Контракт неоднороден: group context частично в path, частично в query; `userId` filter и `includeDrafts` фактически игнорируются. |
 | TS-012 | P1 | open | Backend | History не реализована; `useNpAlgorithm` не влияет на расчёт; greedy transfers не гарантируют минимальное число переводов. |
 | TS-013 | P1 | open | Bot | Бот логирует `BOT_TOKEN`, включает debug и использует long polling. Токен необходимо исключить из логов. |

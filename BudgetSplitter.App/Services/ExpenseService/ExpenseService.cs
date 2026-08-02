@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using BudgetSplitter.Common.Dtos;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
+using BudgetSplitter.Common.Domain;
 using BudgetSplitter.Common.Exceptions;
 using Persistence;
 
@@ -14,57 +15,29 @@ public class ExpenseService : IExpenseService
 
     public async Task<IEnumerable<ExpenseResponseDto>> GetGroupExpensesAsync(Guid groupId, bool includeDrafts = false)
     {
-        var query = _db.Expenses
+        var expenses = await _db.Expenses
             .Where(e => e.GroupId == groupId)
-            .AsNoTracking();
+            .Include(expense => expense.Payer)
+            .Include(expense => expense.Shares).ThenInclude(share => share.User)
+            .Include(expense => expense.Payments)
+            .AsNoTracking()
+            .ToListAsync();
 
-        return query.Select(e => new ExpenseResponseDto
-        {
-            Id = e.Id,
-            Title = e.Title,
-            TotalAmount = e.TotalAmount,
-            PayerId = e.PayerId,
-            PayerName = e.Payer.DisplayName,
-            CreatedByUserId = e.CreatedByUserId,
-            CreatedAt = e.CreatedAt,
-            IsDraft = e.IsDraft,
-            Shares = e.Shares.Select(s => new ExpenseShareResponseDto
-            {
-                UserId = s.UserId,
-                UserName = s.User.DisplayName,
-                Amount = s.Amount,
-                IsPaid = s.IsPaid
-            }).ToList()
-        });
+        return expenses.Select(ToResponse);
     }
 
     public async Task<ExpenseResponseDto> GetExpenseByIdAsync(Guid groupId, Guid expenseId)
     {
         var expense = await _db.Expenses
             .Where(x => x.GroupId == groupId && x.Id == expenseId)
-            .Include(x => x.Shares).ThenInclude(expenseShare => expenseShare.User).Include(expense => expense.Payer)
+            .Include(x => x.Shares).ThenInclude(expenseShare => expenseShare.User)
+            .Include(expense => expense.Payer)
+            .Include(expense => expense.Payments)
             .AsNoTracking()
             .FirstOrDefaultAsync();
         if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
 
-        return new ExpenseResponseDto
-        {
-            Id = expense.Id,
-            Title = expense.Title,
-            TotalAmount = expense.TotalAmount,
-            PayerId = expense.PayerId,
-            PayerName = expense.Payer.DisplayName,
-            CreatedByUserId = expense.CreatedByUserId,
-            CreatedAt = expense.CreatedAt,
-            IsDraft = expense.IsDraft,
-            Shares = expense.Shares.Select(s => new ExpenseShareResponseDto
-            {
-                UserId = s.UserId,
-                UserName = s.User.DisplayName,
-                Amount = s.Amount,
-                IsPaid = s.IsPaid
-            }).ToList()
-        };
+        return ToResponse(expense);
     }
 
     public async Task<ExpenseResponseDto> CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto,
@@ -116,8 +89,7 @@ public class ExpenseService : IExpenseService
             {
                 ExpenseId = expense.Id,
                 UserId = s.UserId,
-                Amount = s.Amount,
-                IsPaid = false
+                Amount = s.Amount
             });
         }
 
@@ -126,8 +98,7 @@ public class ExpenseService : IExpenseService
         {
             ExpenseId = expense.Id,
             UserId = expense.PayerId,
-            Amount = remainder,
-            IsPaid = true
+            Amount = remainder
         });
 
         await _db.SaveChangesAsync();
@@ -152,6 +123,9 @@ public class ExpenseService : IExpenseService
     {
         EnsurePositiveAmount(totalAmount, "Total amount");
 
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await LockExpenseAsync(expenseId);
+
         var expense = await _db.Expenses
             .Include(expense => expense.Payer).Include(expense => expense.Shares)
             .ThenInclude(expenseShare => expenseShare.User)
@@ -173,15 +147,19 @@ public class ExpenseService : IExpenseService
         expense.TotalAmount = totalAmount;
 
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     public async Task DeleteExpenseAsync(Guid groupId, Guid expenseId)
     {
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await LockExpenseAsync(expenseId);
         var expense = await _db.Expenses
             .FirstOrDefaultAsync(e => e.Id == expenseId && e.GroupId == groupId);
         if (expense == null) return;
         _db.Expenses.Remove(expense);
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     public async Task ConfirmExpenseAsync(Guid groupId, Guid expenseId)
@@ -195,23 +173,24 @@ public class ExpenseService : IExpenseService
 
     public async Task<IEnumerable<ExpenseShareResponseDto>> GetExpenseParticipantsAsync(Guid groupId, Guid expenseId)
     {
-        var shares = await _db.ExpenseShares
-            .Where(s => s.ExpenseId == expenseId && s.Expense.GroupId == groupId)
-            .AsNoTracking().Include(expenseShare => expenseShare.User)
-            .ToListAsync();
-        return shares.Select(s => new ExpenseShareResponseDto
-        {
-            UserId = s.UserId,
-            UserName = s.User.DisplayName,
-            Amount = s.Amount,
-            IsPaid = s.IsPaid
-        });
+        var expense = await _db.Expenses
+            .Where(candidate => candidate.Id == expenseId && candidate.GroupId == groupId)
+            .Include(candidate => candidate.Shares).ThenInclude(share => share.User)
+            .Include(candidate => candidate.Payments)
+            .AsNoTracking()
+            .SingleOrDefaultAsync();
+        if (expense is null) return [];
+
+        return ToResponse(expense).Shares;
     }
 
     public async Task AddExpenseParticipantsAsync(Guid groupId, Guid expenseId,
         ExpenseShareCreateDto share)
     {
         EnsurePositiveAmount(share.Amount, "Expense participant share");
+
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await LockExpenseAsync(expenseId);
 
         var expense = await _db.Expenses.FindAsync(expenseId)
                       ?? throw new NotFoundException($"Expense {expenseId} not found");
@@ -238,8 +217,7 @@ public class ExpenseService : IExpenseService
         {
             ExpenseId = expenseId,
             UserId = share.UserId,
-            Amount = share.Amount,
-            IsPaid = false
+            Amount = share.Amount
         });
 
         var remainder = expense.TotalAmount - totalOthers;
@@ -252,8 +230,7 @@ public class ExpenseService : IExpenseService
             {
                 ExpenseId = expenseId,
                 UserId = expense.PayerId,
-                Amount = remainder,
-                IsPaid = true
+                Amount = remainder
             });
         }
         else
@@ -262,12 +239,16 @@ public class ExpenseService : IExpenseService
         }
 
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     public async Task UpdateExpenseParticipantAsync(Guid groupId, Guid expenseId,
         ExpenseShareCreateDto shareDto)
     {
         EnsurePositiveAmount(shareDto.Amount, "Expense participant share");
+
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await LockExpenseAsync(expenseId);
 
         var share = await _db.ExpenseShares
                         .Include(x => x.Expense)
@@ -281,6 +262,14 @@ public class ExpenseService : IExpenseService
         if (share.UserId == expense.PayerId)
         {
             throw new BadRequestException("Payer share is calculated automatically and cannot be updated directly.");
+        }
+
+        var paidAmount = await _db.Payments
+            .Where(payment => payment.ExpenseId == expenseId && payment.FromUserId == share.UserId)
+            .SumAsync(payment => payment.Amount);
+        if (paidAmount > shareDto.Amount)
+        {
+            throw new BadRequestException("Participant share cannot be less than payments already recorded for it.");
         }
 
         var sumOthers = await _db.ExpenseShares
@@ -304,8 +293,7 @@ public class ExpenseService : IExpenseService
             {
                 ExpenseId = expenseId,
                 UserId = expense.PayerId,
-                Amount = remainder,
-                IsPaid = true
+                Amount = remainder
             });
         }
         else
@@ -315,10 +303,13 @@ public class ExpenseService : IExpenseService
 
 
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     public async Task RemoveExpenseParticipantAsync(Guid groupId, Guid expenseId, Guid userId)
     {
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await LockExpenseAsync(expenseId);
         var share = await _db.ExpenseShares
             .Include(x => x.Expense)
             .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == userId);
@@ -334,6 +325,14 @@ public class ExpenseService : IExpenseService
         if (share.UserId == share.Expense.PayerId)
         {
             throw new BadRequestException("Payer share cannot be removed from an expense.");
+        }
+
+        var paidAmount = await _db.Payments
+            .Where(payment => payment.ExpenseId == expenseId && payment.FromUserId == userId)
+            .SumAsync(payment => payment.Amount);
+        if (paidAmount > 0)
+        {
+            throw new BadRequestException("Participant with recorded payments cannot be removed from an expense.");
         }
 
         _db.ExpenseShares.Remove(share);
@@ -353,8 +352,7 @@ public class ExpenseService : IExpenseService
             {
                 ExpenseId = expenseId,
                 UserId = expense.PayerId,
-                Amount = remainder,
-                IsPaid = true
+                Amount = remainder
             });
         }
         else
@@ -363,6 +361,7 @@ public class ExpenseService : IExpenseService
         }
 
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     private async Task EnsureGroupMembersAsync(Guid groupId, IEnumerable<Guid> userIds)
@@ -392,5 +391,36 @@ public class ExpenseService : IExpenseService
         {
             throw new BadRequestException("Expense title is required.");
         }
+    }
+
+    private static ExpenseResponseDto ToResponse(Expense expense)
+    {
+        return new ExpenseResponseDto
+        {
+            Id = expense.Id,
+            Title = expense.Title,
+            TotalAmount = expense.TotalAmount,
+            PayerId = expense.PayerId,
+            PayerName = expense.Payer.DisplayName,
+            CreatedByUserId = expense.CreatedByUserId,
+            CreatedAt = expense.CreatedAt,
+            IsDraft = expense.IsDraft,
+            Shares = expense.Shares.Select(share => new ExpenseShareResponseDto
+            {
+                UserId = share.UserId,
+                UserName = share.User.DisplayName,
+                Amount = share.Amount,
+                IsPaid = ExpenseShareSettlement.IsPaid(
+                    share.UserId,
+                    expense.PayerId,
+                    share.Amount,
+                    expense.Payments.Where(payment => payment.FromUserId == share.UserId).Sum(payment => payment.Amount))
+            }).ToList()
+        };
+    }
+
+    private async Task LockExpenseAsync(Guid expenseId)
+    {
+        await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Expenses\" WHERE \"Id\" = {expenseId} FOR UPDATE");
     }
 }

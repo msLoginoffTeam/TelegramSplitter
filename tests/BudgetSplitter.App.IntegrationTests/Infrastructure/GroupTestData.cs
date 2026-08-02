@@ -63,8 +63,7 @@ public static class GroupTestData
                 {
                     ExpenseId = expense.Id,
                     UserId = userId,
-                    Amount = amount,
-                    IsPaid = userId == payerId
+                    Amount = amount
                 });
             }
         }

@@ -32,4 +32,5 @@ public class Expense
     public bool IsDraft { get; set; } = true;
 
     public ICollection<ExpenseShare> Shares { get; set; } = new List<ExpenseShare>();
+    public ICollection<Payment> Payments { get; set; } = new List<Payment>();
 }

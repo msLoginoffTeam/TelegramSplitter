@@ -75,6 +75,11 @@ namespace Persistence
             modelBuilder.Entity<Expense>(b =>
             {
                 b.HasKey(e => e.Id);
+                b.ToTable(table =>
+                {
+                    table.HasCheckConstraint("CK_Expenses_TotalAmount_Positive", "\"TotalAmount\" > 0");
+                    table.HasCheckConstraint("CK_Expenses_Title_NotBlank", "length(btrim(\"Title\")) > 0");
+                });
 
                 b
                     .HasOne(e => e.Group)
@@ -98,6 +103,8 @@ namespace Persistence
             modelBuilder.Entity<ExpenseShare>(b =>
             {
                 b.HasKey(es => es.Id);
+                b.HasIndex(es => new { es.ExpenseId, es.UserId }).IsUnique();
+                b.ToTable(table => table.HasCheckConstraint("CK_ExpenseShares_Amount_NonNegative", "\"Amount\" >= 0"));
 
                 b
                     .HasOne(es => es.Expense)
@@ -116,6 +123,11 @@ namespace Persistence
             modelBuilder.Entity<Payment>(b =>
             {
                 b.HasKey(p => p.Id);
+                b.ToTable(table =>
+                {
+                    table.HasCheckConstraint("CK_Payments_Amount_Positive", "\"Amount\" > 0");
+                    table.HasCheckConstraint("CK_Payments_DifferentUsers", "\"FromUserId\" <> \"ToUserId\"");
+                });
 
                 b
                     .HasOne(p => p.Group)
@@ -139,6 +151,11 @@ namespace Persistence
                     .WithMany(u => u.PaymentsCreated)
                     .HasForeignKey(p => p.CreatedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+                b
+                    .HasOne(p => p.Expense)
+                    .WithMany(e => e.Payments)
+                    .HasForeignKey(p => p.ExpenseId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

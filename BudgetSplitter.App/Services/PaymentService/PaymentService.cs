@@ -21,7 +21,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
             return payments.Select(p => new PaymentResponseDto
             {
                 Id = p.Id,
-                ExpenseId = p.Expense?.Id,
+                ExpenseId = p.ExpenseId,
                 FromUserId = p.FromUserId,
                 FromUserName = p.FromUser.DisplayName,
                 ToUserId = p.ToUserId,
@@ -44,7 +44,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
             return payments.Select(p => new PaymentResponseDto
             {
                 Id = p.Id,
-                ExpenseId = p.Expense?.Id,
+                ExpenseId = p.ExpenseId,
                 FromUserId = p.FromUserId,
                 FromUserName = p.FromUser.DisplayName,
                 ToUserId = p.ToUserId,
@@ -62,6 +62,9 @@ namespace BudgetSplitter.App.Services.PaymentService;
         {
             EnsurePositiveAmount(dto.Amount);
 
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            await LockExpenseAsync(dto.ExpenseId);
+
             var expense = await _db.Expenses
                 .Include(e => e.Shares)
                 .FirstOrDefaultAsync(e => e.Id == dto.ExpenseId && e.GroupId == groupId)
@@ -77,22 +80,17 @@ namespace BudgetSplitter.App.Services.PaymentService;
             }
         
             var paidSum = await _db.Payments
-                .Where(p => p.Expense != null && p.Expense.Id == dto.ExpenseId && p.FromUserId == dto.FromUserId)
+                .Where(p => p.ExpenseId == dto.ExpenseId && p.FromUserId == dto.FromUserId)
                 .SumAsync(p => p.Amount);
         
             if (paidSum + dto.Amount > share.Amount)
                 throw new BadRequestException(
                     $"Payment ({dto.Amount}) exceeds remaining debt ({share.Amount - paidSum})");
 
-            if (paidSum + dto.Amount == share.Amount)
-            {
-                share.IsPaid = true;
-            }
-        
             var payment = new Payment
             {
                 GroupId = groupId,
-                Expense =  expense,
+                ExpenseId = expense.Id,
                 FromUserId = dto.FromUserId,
                 ToUserId = expense.PayerId,
                 CreatedByUserId = createdByUserId,
@@ -101,11 +99,12 @@ namespace BudgetSplitter.App.Services.PaymentService;
             };
             _db.Payments.Add(payment);
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
         
             return new PaymentResponseDto
             {
                 Id = payment.Id,
-                ExpenseId = payment.Expense.Id,
+                ExpenseId = payment.ExpenseId,
                 FromUserId = payment.FromUserId,
                 ToUserId = payment.ToUserId,
                 CreatedByUserId = payment.CreatedByUserId,
@@ -136,7 +135,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
             var payment = new Payment
             {
                 GroupId = groupId,
-                Expense = null,
+                ExpenseId = null,
                 FromUserId = dto.FromUserId,
                 ToUserId = dto.ToUserId,
                 CreatedByUserId = createdByUserId,
@@ -149,7 +148,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
             return new PaymentResponseDto
             {
                 Id = payment.Id,
-                ExpenseId = payment.Expense?.Id,
+                ExpenseId = payment.ExpenseId,
                 FromUserId = payment.FromUserId,
                 ToUserId = payment.ToUserId,
                 CreatedByUserId = payment.CreatedByUserId,
@@ -165,19 +164,22 @@ namespace BudgetSplitter.App.Services.PaymentService;
          {
              EnsurePositiveAmount(dto.Amount);
 
+             await using var transaction = await _db.Database.BeginTransactionAsync();
+
              var payment = await _db.Payments
-                 .Include(p => p.Expense)
                  .FirstOrDefaultAsync(p => p.Id == paymentId && p.GroupId == groupId)
                  ?? throw new NotFoundException($"Payment {paymentId} not found");
-        
-             if (payment.Expense != null)
+
+             if (payment.ExpenseId is { } expenseId)
              {
+                 await LockExpenseAsync(expenseId);
+                 await _db.Entry(payment).ReloadAsync();
                  var share = await _db.ExpenseShares
-                     .FirstOrDefaultAsync(s => s.ExpenseId == payment.Expense.Id && s.UserId == payment.FromUserId)
+                     .FirstOrDefaultAsync(s => s.ExpenseId == expenseId && s.UserId == payment.FromUserId)
                      ?? throw new BadRequestException("Share not found");
         
                  var paidSum = await _db.Payments
-                     .Where(p => p.Expense != null && p.Expense.Id == payment.Expense.Id && p.FromUserId == payment.FromUserId)
+                     .Where(p => p.ExpenseId == expenseId && p.FromUserId == payment.FromUserId)
                      .SumAsync(p => p.Amount);
         
                  var newSum = paidSum - payment.Amount + dto.Amount;
@@ -185,40 +187,30 @@ namespace BudgetSplitter.App.Services.PaymentService;
                      throw new BadRequestException(
                          $"Updated payment ({dto.Amount}) exceeds remaining debt ({share.Amount - (paidSum - payment.Amount)})");
                  
-                 share.IsPaid = newSum == share.Amount;
-                 
              }
         
              payment.Amount = dto.Amount;
              await _db.SaveChangesAsync();
+             await transaction.CommitAsync();
         }
 
         public async Task DeletePaymentAsync(Guid groupId, Guid paymentId)
         {
+            await using var transaction = await _db.Database.BeginTransactionAsync();
             var payment = await _db.Payments
-                .Include(payment => payment.Expense)
                 .FirstOrDefaultAsync(p => p.Id == paymentId && p.GroupId == groupId);
             if (payment == null)
                 return;
 
-            _db.Payments.Remove(payment);
-
-            if (payment.Expense is not null)
+            if (payment.ExpenseId is { } expenseId)
             {
-                var share = await _db.ExpenseShares
-                    .FirstOrDefaultAsync(share => share.ExpenseId == payment.Expense.Id && share.UserId == payment.FromUserId)
-                    ?? throw new BadRequestException("Share not found");
-                var paidSum = await _db.Payments
-                    .Where(existingPayment => existingPayment.Id != paymentId &&
-                                              existingPayment.Expense != null &&
-                                              existingPayment.Expense.Id == payment.Expense.Id &&
-                                              existingPayment.FromUserId == payment.FromUserId)
-                    .SumAsync(existingPayment => existingPayment.Amount);
-
-                share.IsPaid = paidSum == share.Amount;
+                await LockExpenseAsync(expenseId);
+                await _db.Entry(payment).ReloadAsync();
             }
 
+            _db.Payments.Remove(payment);
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
         private static void EnsurePositiveAmount(decimal amount)
@@ -227,5 +219,10 @@ namespace BudgetSplitter.App.Services.PaymentService;
             {
                 throw new BadRequestException("Payment amount must be positive.");
             }
+        }
+
+        private async Task LockExpenseAsync(Guid expenseId)
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Expenses\" WHERE \"Id\" = {expenseId} FOR UPDATE");
         }
     }

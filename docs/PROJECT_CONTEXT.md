@@ -27,6 +27,7 @@
 
 - ASP.NET Core / EF Core / PostgreSQL 16, target `net10.0`; SDK фиксирован в `global.json` (`10.0.101`), локальный `dotnet-ef` — в `.config/dotnet-tools.json`.
 - `AppDbContextDesignTimeFactory` из persistence-проекта изолирует EF tooling от запуска API и автоматического применения migration; `dotnet ef migrations add` больше не требует локальную БД.
+- На текущем этапе БД считается чистой: новые migrations не обязаны переносить или чинить исторические production-данные. Перед первым реальным production deployment это решение нужно пересмотреть.
 - Backend собирается успешно, но остаются два compiler warning: nullable navigation `Group.CreatedBy` и неверный XML `param` в `ExpensesController`.
 - Есть 4 unit и 4 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
@@ -43,6 +44,8 @@ Telegram Mini App для совместных расходов: группы, т
 - `Expense.CreatedBy` — плательщик траты.
 - `ExpenseShare` — доля участника. Сумма всех долей должна совпадать с суммой траты; доли не-плательщиков создают долг плательщику.
 - `Payment` — фактический перевод `FromUser -> ToUser`, прямой либо связанный с тратой.
+- MVP работает только с рублями: без поля currency, конвертаций и нескольких валют внутри группы.
+- `ExpenseShare.IsPaid` не хранится в БД: поле ответа вычисляется из платежей этой доли; payer share считается закрытой автоматически.
 - Положительный баланс означает «пользователю должны», отрицательный — «пользователь должен».
 - Итоговые transfers рассчитываются по чистым балансам и устраняют встречные/циклические переводы.
 
@@ -73,7 +76,7 @@ Frontend не пишет API-контракты вручную: OpenAPI snapshot
 ## Направление реализации
 
 1. Обычно изменения ведутся прямо в `main`; текущая задача permissions временно находится в отдельной пользовательской feature-ветке и будет слита одним коммитом.
-2. Стабилизировать backend: group authorization, денежные инварианты, транзакции, migrations и расширение tests.
+2. Стабилизировать backend: group authorization завершена; следующий P0 — денежные инварианты, транзакции и constraints в БД.
 3. Нормализовать OpenAPI и генерировать Go/TypeScript clients с CI drift check.
 4. Реализовать отдельный React + TypeScript Mini App: список групп, dashboard, expense wizard, payments, transfers, members/settings.
 5. Сократить Go-бот до Telegram entrypoint: `/start`, запуск Mini App, group deep links, приглашения, уведомления и публикация итогов.
@@ -89,10 +92,10 @@ Frontend не пишет API-контракты вручную: OpenAPI snapshot
 
 ## Критические инварианты
 
-- Сумма долей равна `TotalAmount`, один пользователь встречается в долях не более одного раза.
-- Плательщик и участники состоят в группе; один участник может иметь только одну долю в трате. Положительность сумм и запрет `FromUser == ToUser` ещё предстоит добавить.
+- Сумма долей равна `TotalAmount`, один пользователь встречается в долях не более одного раза (защищено unique index в БД).
+- Плательщик и участники состоят в группе; суммы положительны, а отправитель и получатель payment различаются.
 - Сумма балансов группы равна нулю.
 - Предложенные transfers полностью обнуляют балансы.
-- Изменение/удаление payment не оставляет ложный `IsPaid`.
+- Изменение/удаление payment не оставляет ложный `IsPaid`, потому что `IsPaid` вычисляемое.
 - Каждый endpoint проверяет Telegram-пользователя и доступ к группе.
 - Повтор create-запроса не создаёт дубликат операции.

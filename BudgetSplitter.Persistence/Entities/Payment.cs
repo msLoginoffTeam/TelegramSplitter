@@ -26,8 +26,9 @@ public class Payment
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal Amount { get; set; }
-    
-    public Expense? Expense { get; set; } = null!;
+
+    public Guid? ExpenseId { get; set; }
+    public Expense? Expense { get; set; }
 
     [Required]
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
