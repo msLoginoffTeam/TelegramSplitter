@@ -47,6 +47,8 @@ public class GroupService : IGroupService
         var group = await _db.Groups
             .Include(g => g.UserGroups)
             .ThenInclude(ug => ug.User)
+            .Include(g => g.UserGroups)
+            .ThenInclude(ug => ug.Permissions)
             .AsNoTracking()
             .FirstOrDefaultAsync(g => g.Id == groupId);
 
@@ -58,12 +60,21 @@ public class GroupService : IGroupService
             Id = group.Id,
             Title = group.Title,
             TelegramChatId = group.TelegramChatId,
-            Users = group.UserGroups
-                .Select(ug => new UserResponseDto
+            Members = group.UserGroups
+                .OrderBy(ug => ug.User.DisplayName)
+                .Select(ug => new GroupMemberResponseDto
                 {
-                    Id = ug.User.Id,
+                    UserId = ug.User.Id,
                     TelegramId = ug.User.TelegramId,
-                    DisplayName = ug.User.DisplayName
+                    DisplayName = ug.User.DisplayName,
+                    IsOwner = ug.UserId == group.OwnerId,
+                    Role = GroupRolePresets.ResolveRole(
+                        ug.Permissions.Select(permission => permission.Permission).ToHashSet(),
+                        ug.UserId == group.OwnerId),
+                    Permissions = ug.Permissions
+                        .Select(permission => permission.Permission)
+                        .Order()
+                        .ToArray()
                 })
                 .ToList()
         };
@@ -145,6 +156,13 @@ public class GroupService : IGroupService
 
     public async Task RemoveUserAsync(Guid groupId, Guid userId)
     {
+        var isOwner = await _db.Groups
+            .AnyAsync(group => group.Id == groupId && group.OwnerId == userId);
+        if (isOwner)
+        {
+            throw new BadRequestException("Transfer ownership before removing the group owner.");
+        }
+
         var ug = await _db.UserGroups
             .FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId);
         if (ug != null)
@@ -155,6 +173,104 @@ public class GroupService : IGroupService
         else
         {
             throw new BadRequestException($"User with id {userId} does not exist in group {groupId}");
+        }
+    }
+
+    public async Task UpdateMemberPermissionsAsync(Guid groupId, Guid userId, UpdateGroupMemberPermissionsRequestDto dto)
+    {
+        var group = await _db.Groups.SingleOrDefaultAsync(group => group.Id == groupId)
+                    ?? throw new NotFoundException($"Group {groupId} not found");
+        if (group.OwnerId == userId)
+        {
+            throw new BadRequestException("Owner permissions can only change through ownership transfer.");
+        }
+
+        var membership = await _db.UserGroups
+                             .Include(member => member.Permissions)
+                             .SingleOrDefaultAsync(member => member.GroupId == groupId && member.UserId == userId)
+                         ?? throw new NotFoundException($"User {userId} is not a member of group {groupId}");
+
+        var permissions = ResolvePermissions(dto);
+        membership.Permissions.Clear();
+        foreach (var permission in permissions)
+        {
+            membership.Permissions.Add(new GroupMemberPermission
+            {
+                GroupId = groupId,
+                UserId = userId,
+                Permission = permission
+            });
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task TransferOwnershipAsync(Guid groupId, Guid newOwnerUserId)
+    {
+        var group = await _db.Groups.SingleOrDefaultAsync(group => group.Id == groupId)
+                    ?? throw new NotFoundException($"Group {groupId} not found");
+        if (group.OwnerId == newOwnerUserId) return;
+
+        var newOwnerMembership = await _db.UserGroups
+                                     .Include(member => member.Permissions)
+                                     .SingleOrDefaultAsync(member => member.GroupId == groupId && member.UserId == newOwnerUserId)
+                                 ?? throw new BadRequestException("New owner must be a group member.");
+        var previousOwnerMembership = await _db.UserGroups
+                                         .Include(member => member.Permissions)
+                                         .SingleAsync(member => member.GroupId == groupId && member.UserId == group.OwnerId);
+
+        ReplacePermissions(previousOwnerMembership, GroupRolePresets.GetPermissions(GroupRole.Admin));
+        ReplacePermissions(newOwnerMembership, GroupRolePresets.GetPermissions(GroupRole.Owner));
+        group.OwnerId = newOwnerUserId;
+        await _db.SaveChangesAsync();
+    }
+
+    private static IReadOnlySet<GroupPermission> ResolvePermissions(UpdateGroupMemberPermissionsRequestDto dto)
+    {
+        switch (dto.Role)
+        {
+            case { } requestedRole when !Enum.IsDefined(requestedRole):
+                throw new BadRequestException("The specified group role is invalid.");
+            case GroupRole.Owner:
+                throw new BadRequestException("Ownership can only change through ownership transfer.");
+            case { } role when role != GroupRole.Custom && dto.Permissions is null:
+                return GroupRolePresets.GetPermissions(role);
+            case null or GroupRole.Custom when dto.Permissions is { Count: > 0 }:
+            {
+                var permissions = dto.Permissions!.ToHashSet();
+                if (permissions.Any(permission => !Enum.IsDefined(permission)))
+                {
+                    throw new BadRequestException("The custom permission set contains an invalid permission.");
+                }
+
+                if (!permissions.Contains(GroupPermission.ViewGroup))
+                {
+                    throw new BadRequestException("An active group member must retain ViewGroup permission.");
+                }
+
+                if (permissions.Contains(GroupPermission.DeleteGroup) || permissions.Contains(GroupPermission.TransferOwnership))
+                {
+                    throw new BadRequestException("DeleteGroup and TransferOwnership are reserved for the group owner.");
+                }
+
+                return permissions;
+            }
+            default:
+                throw new BadRequestException("Specify a non-custom role or a non-empty custom permission set.");
+        }
+    }
+
+    private static void ReplacePermissions(UserGroup membership, IReadOnlySet<GroupPermission> permissions)
+    {
+        membership.Permissions.Clear();
+        foreach (var permission in permissions)
+        {
+            membership.Permissions.Add(new GroupMemberPermission
+            {
+                GroupId = membership.GroupId,
+                UserId = membership.UserId,
+                Permission = permission
+            });
         }
     }
 }
