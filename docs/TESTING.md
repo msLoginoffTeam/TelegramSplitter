@@ -15,4 +15,4 @@ dotnet test BudgetSplitterWebApi.sln
 
 `PostgreSqlFixture` запускает один временный контейнер на прогон. `IntegrationTestBase` перед каждым тестом очищает все прикладные таблицы через Respawn, сохраняя только историю EF migrations. Новый integration test должен наследоваться от него и не обращаться к локальной БД вручную.
 
-Покрыты Telegram authentication, self-service Users API и базовые сценарии group authorization: membership, viewer/member/admin/owner, `own/any`, cross-group protection и ownership transfer. Следующими на этом же фундаменте добавляются денежные инварианты, транзакции и transfers.
+Покрыты Telegram authentication, self-service Users API, role presets, AND-семантика permission attribute и основные сценарии group authorization: membership, viewer/member/admin/owner, `own/any`, cross-group protection и ownership transfer. Integration suite также проверяет создание трат, shares и прямые/expense payments, включая синхронизацию `IsPaid` после update/delete, а также balances и инвариант обнуления балансов предложенными transfers. Следующим на этом же фундаменте добавляется migration заполненной БД и history.

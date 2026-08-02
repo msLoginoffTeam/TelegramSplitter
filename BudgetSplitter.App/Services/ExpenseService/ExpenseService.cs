@@ -70,6 +70,9 @@ public class ExpenseService : IExpenseService
     public async Task<ExpenseResponseDto> CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto,
         Guid createdByUserId)
     {
+        EnsureValidTitle(dto.Title);
+        EnsurePositiveAmount(dto.TotalAmount, "Total amount");
+
         var shareUserIds = dto.Shares.Select(share => share.UserId).ToArray();
         if (shareUserIds.Contains(dto.PayerId))
         {
@@ -79,6 +82,11 @@ public class ExpenseService : IExpenseService
         if (shareUserIds.Distinct().Count() != shareUserIds.Length)
         {
             throw new BadRequestException("An expense can contain only one share per participant.");
+        }
+
+        if (dto.Shares.Any(share => share.Amount <= 0))
+        {
+            throw new BadRequestException("Each expense participant share must be positive.");
         }
 
         await EnsureGroupMembersAsync(groupId, shareUserIds.Append(dto.PayerId));
@@ -129,6 +137,8 @@ public class ExpenseService : IExpenseService
 
     public async Task UpdateExpenseAsync(Guid expenseId, string title)
     {
+        EnsureValidTitle(title);
+
         var expense = await _db.Expenses
             .FirstOrDefaultAsync(e => e.Id == expenseId);
         if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
@@ -140,6 +150,8 @@ public class ExpenseService : IExpenseService
 
     public async Task UpdateExpenseAsync(Guid expenseId, decimal totalAmount)
     {
+        EnsurePositiveAmount(totalAmount, "Total amount");
+
         var expense = await _db.Expenses
             .Include(expense => expense.Payer).Include(expense => expense.Shares)
             .ThenInclude(expenseShare => expenseShare.User)
@@ -148,7 +160,8 @@ public class ExpenseService : IExpenseService
 
         var value = totalAmount - expense.TotalAmount;
 
-        var payer = expense.Shares.FirstOrDefault(x => x.User == expense.Payer)!;
+        var payer = expense.Shares.FirstOrDefault(share => share.UserId == expense.PayerId)
+                    ?? throw new BadRequestException("Payer share is missing from the expense.");
         payer.Amount += value;
 
         if (payer.Amount < 0)
@@ -198,6 +211,8 @@ public class ExpenseService : IExpenseService
     public async Task AddExpenseParticipantsAsync(Guid groupId, Guid expenseId,
         ExpenseShareCreateDto share)
     {
+        EnsurePositiveAmount(share.Amount, "Expense participant share");
+
         var expense = await _db.Expenses.FindAsync(expenseId)
                       ?? throw new NotFoundException($"Expense {expenseId} not found");
         if (expense.GroupId != groupId)
@@ -252,6 +267,8 @@ public class ExpenseService : IExpenseService
     public async Task UpdateExpenseParticipantAsync(Guid groupId, Guid expenseId,
         ExpenseShareCreateDto shareDto)
     {
+        EnsurePositiveAmount(shareDto.Amount, "Expense participant share");
+
         var share = await _db.ExpenseShares
                         .Include(x => x.Expense)
                         .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == shareDto.UserId)
@@ -261,6 +278,11 @@ public class ExpenseService : IExpenseService
             throw new BadRequestException("Wrong group");
 
         var expense = share.Expense;
+        if (share.UserId == expense.PayerId)
+        {
+            throw new BadRequestException("Payer share is calculated automatically and cannot be updated directly.");
+        }
+
         var sumOthers = await _db.ExpenseShares
             .Where(x => x.ExpenseId == expenseId && x.UserId != expense.PayerId)
             .SumAsync(x => x.Amount);
@@ -309,6 +331,11 @@ public class ExpenseService : IExpenseService
             throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
         }
 
+        if (share.UserId == share.Expense.PayerId)
+        {
+            throw new BadRequestException("Payer share cannot be removed from an expense.");
+        }
+
         _db.ExpenseShares.Remove(share);
 
         var expense = share.Expense;
@@ -348,6 +375,22 @@ public class ExpenseService : IExpenseService
         if (memberCount != requiredUserIds.Length)
         {
             throw new BadRequestException("Payer and expense participants must be members of the group.");
+        }
+    }
+
+    private static void EnsurePositiveAmount(decimal amount, string fieldName)
+    {
+        if (amount <= 0)
+        {
+            throw new BadRequestException($"{fieldName} must be positive.");
+        }
+    }
+
+    private static void EnsureValidTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new BadRequestException("Expense title is required.");
         }
     }
 }

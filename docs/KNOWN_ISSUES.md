@@ -10,9 +10,9 @@
 | TS-004 | P0 | fixed | Secrets | `Program.cs` больше не выводит connection string в stdout. |
 | TS-005 | P0 | fixed | Data | `CreateExpenseAsync` валидирует доли до сохранения и сохраняет expense со всеми shares одним `SaveChanges`. |
 | TS-006 | P0 | planned | Data | Создание расходов проверяет membership payer/share users и дубли в DTO. Для защиты от гонок всё ещё нужен unique index `(ExpenseId, UserId)`. |
-| TS-007 | P0 | open | Money | DTO допускают нулевые/отрицательные суммы, `FromUser == ToUser` и пустые title. Нет валюты группы и явных правил округления. |
+| TS-007 | P0 | planned | Money | Expense/payment validation теперь запрещает неположительные суммы, self-payment и пустой expense title. Всё ещё нет валюты группы и явных правил округления. |
 | TS-008 | P1 | open | Groups | Создатель группы не добавляется в `UserGroups`, поэтому детали/балансы могут его не показывать. |
-| TS-009 | P1 | open | Payments | `IsPaid` ставится в `true`, но не сбрасывается при уменьшении/удалении payment или изменении share. |
+| TS-009 | P1 | open | Payments | `IsPaid` синхронизируется при create/update/delete payment, но изменение expense share пока не пересчитывает уже созданные платежи. |
 | TS-010 | P1 | open | Persistence | Payment–Expense использует shadow FK, а `ExpenseShare.Payments` создаёт второй неиспользуемый shadow FK `ExpenseShareId`; delete semantics неоднозначны. |
 | TS-011 | P1 | open | API | Контракт неоднороден: group context частично в path, частично в query; `userId` filter и `includeDrafts` фактически игнорируются. |
 | TS-012 | P1 | open | Backend | History не реализована; `useNpAlgorithm` не влияет на расчёт; greedy transfers не гарантируют минимальное число переводов. |
@@ -26,7 +26,7 @@
 | TS-020 | P2 | fixed | Git | `.gitignore` больше не маскирует все `appsettings.*.json`, Dockerfile и Compose-файлы; локально секретными остаются только `.env` и `appsettings.Local.json`. |
 | TS-021 | P2 | open | API | Добавлен `/health`. Swagger всё ещё включён во всех environments; отсутствуют CORS policy, pagination, rate limiting и optimistic concurrency. |
 | TS-022 | P2 | open | Migration | Миграция добавляет обязательный `Groups.CreatedById` с `Guid.Empty`; обновление заполненной БД может упасть по FK. |
-| TS-023 | P2 | open | Users | Users API ограничен текущим пользователем, но `DisplayName` всё ещё unique, хотя Telegram-имена не уникальны и меняются. Идентичность должна опираться на Telegram ID. |
+| TS-023 | P2 | fixed | Users | Уникальный индекс `DisplayName` удалён migration `RemoveUniqueDisplayNameConstraint`; идентичность опирается на unique Telegram ID. |
 | TS-024 | P2 | open | Working tree | В канонической локальной копии изменён `appsettings.Development.json`. Это пользовательское изменение: не перезаписывать, не печатать секреты, перед commit решить — оставить локальным или заменить безопасным шаблоном. |
 | TS-025 | P1 | open | CI/CD | Backend и bot workflows всё ещё ориентированы на Docker Hub/VPS и self-hosted runner; bot deploy запускается после push в `main`. На период локальной разработки deployment нужно отключить или сделать только ручным через защищённый GitHub Environment. |
 | TS-026 | P2 | open | Code quality | Release build имеет два compiler warning: nullable `Group.CreatedBy` и XML `param` с неверным именем в `ExpensesController`. Перед включением warning-as-error их нужно устранить. |

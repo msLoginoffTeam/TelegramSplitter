@@ -190,53 +190,10 @@ public sealed class GroupAuthorizationTests(PostgreSqlFixture database) : Integr
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    private async Task<SeededGroup> SeedGroupAsync(long seedOffset = 0)
-    {
-        var users = new[]
-        {
-            CreateUser(TelegramIds.Owner + seedOffset, $"Owner {seedOffset}"),
-            CreateUser(TelegramIds.Admin + seedOffset, $"Admin {seedOffset}"),
-            CreateUser(TelegramIds.Member + seedOffset, $"Member {seedOffset}"),
-            CreateUser(TelegramIds.Viewer + seedOffset, $"Viewer {seedOffset}")
-        };
-        var group = new Group
-        {
-            Title = $"Test group {seedOffset}",
-            CreatedById = users[0].Id,
-            OwnerId = users[0].Id
-        };
+    private Task<SeededGroup> SeedGroupAsync(long seedOffset = 0) => GroupTestData.SeedGroupAsync(Database, seedOffset);
 
-        await using var db = CreateDbContext();
-        db.Users.AddRange(users);
-        db.Groups.Add(group);
-        AddMembership(db, group.Id, users[0].Id, GroupRole.Owner);
-        AddMembership(db, group.Id, users[1].Id, GroupRole.Admin);
-        AddMembership(db, group.Id, users[2].Id, GroupRole.Member);
-        AddMembership(db, group.Id, users[3].Id, GroupRole.Viewer);
-        await db.SaveChangesAsync();
-
-        return new SeededGroup(
-            group.Id,
-            users.ToDictionary(user => user.TelegramId, user => user.Id));
-    }
-
-    private async Task<Guid> SeedExpenseAsync(Guid groupId, Guid payerId, Guid createdByUserId)
-    {
-        var expense = new Expense
-        {
-            GroupId = groupId,
-            PayerId = payerId,
-            CreatedByUserId = createdByUserId,
-            Title = "Original title",
-            TotalAmount = 100,
-            IsDraft = false
-        };
-
-        await using var db = CreateDbContext();
-        db.Expenses.Add(expense);
-        await db.SaveChangesAsync();
-        return expense.Id;
-    }
+    private Task<Guid> SeedExpenseAsync(Guid groupId, Guid payerId, Guid createdByUserId)
+        => GroupTestData.SeedExpenseAsync(Database, groupId, payerId, createdByUserId);
 
     private async Task<HttpResponseMessage> SendAuthenticatedAsync(HttpMethod method, string uri, long telegramId, HttpContent? content = null)
     {
@@ -245,32 +202,7 @@ public sealed class GroupAuthorizationTests(PostgreSqlFixture database) : Integr
         return await Client.SendAsync(request);
     }
 
-    private AppDbContext CreateDbContext()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(Database.ConnectionString)
-            .Options;
-        return new AppDbContext(options);
-    }
-
-    private static User CreateUser(long telegramId, string displayName) => new()
-    {
-        TelegramId = telegramId,
-        DisplayName = displayName
-    };
-
-    private static void AddMembership(AppDbContext db, Guid groupId, Guid userId, GroupRole role)
-    {
-        db.UserGroups.Add(new UserGroup { GroupId = groupId, UserId = userId });
-        db.GroupMemberPermissions.AddRange(GroupRolePresets.GetPermissions(role).Select(permission => new GroupMemberPermission
-        {
-            GroupId = groupId,
-            UserId = userId,
-            Permission = permission
-        }));
-    }
-
-    private sealed record SeededGroup(Guid GroupId, IReadOnlyDictionary<long, Guid> UserIds);
+    private AppDbContext CreateDbContext() => GroupTestData.CreateDbContext(Database);
 
     private static class TelegramIds
     {

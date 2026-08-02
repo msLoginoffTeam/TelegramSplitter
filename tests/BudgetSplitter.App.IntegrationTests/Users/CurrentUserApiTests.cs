@@ -43,6 +43,26 @@ public sealed class CurrentUserApiTests(PostgreSqlFixture database) : Integratio
         Assert.Equal("Max", profile.DisplayName);
     }
 
+    [Fact]
+    public async Task UpdateMe_AllowsDifferentTelegramUsersToShareDisplayName()
+    {
+        const string displayName = "Alex";
+
+        using var firstResponse = await SendAuthenticatedAsync(
+            HttpMethod.Put,
+            "/api/users/me",
+            201_004,
+            JsonContent.Create(new UpdateUserRequestDto { DisplayName = displayName }));
+        using var secondResponse = await SendAuthenticatedAsync(
+            HttpMethod.Put,
+            "/api/users/me",
+            201_005,
+            JsonContent.Create(new UpdateUserRequestDto { DisplayName = displayName }));
+
+        Assert.Equal(HttpStatusCode.NoContent, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, secondResponse.StatusCode);
+    }
+
     [Theory]
     [InlineData("GET", "/api/users")]
     [InlineData("GET", "/api/users/find?userTelegramId=201003")]

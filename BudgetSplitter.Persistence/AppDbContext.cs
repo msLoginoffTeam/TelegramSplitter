@@ -26,7 +26,6 @@ namespace Persistence
             {
                 b.HasKey(u => u.Id);
                 b.HasIndex(u => u.TelegramId).IsUnique();
-                b.HasIndex(u => u.DisplayName).IsUnique();
             });
 
             // Group
