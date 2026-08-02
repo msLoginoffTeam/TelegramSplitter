@@ -15,4 +15,6 @@ public interface IGroupService
 
     Task AddUserAsync(Guid groupId, AddGroupUserRequestDto dto);
     Task RemoveUserAsync(Guid groupId, Guid userId);
+    Task UpdateMemberPermissionsAsync(Guid groupId, Guid userId, UpdateGroupMemberPermissionsRequestDto dto);
+    Task TransferOwnershipAsync(Guid groupId, Guid newOwnerUserId);
 }

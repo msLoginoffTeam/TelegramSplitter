@@ -26,6 +26,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 FromUserName = p.FromUser.DisplayName,
                 ToUserId = p.ToUserId,
                 ToUserName = p.ToUser.DisplayName,
+                CreatedByUserId = p.CreatedByUserId,
                 Amount = p.Amount,
                 Timestamp = p.Timestamp
             });
@@ -48,6 +49,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 FromUserName = p.FromUser.DisplayName,
                 ToUserId = p.ToUserId,
                 ToUserName = p.ToUser.DisplayName,
+                CreatedByUserId = p.CreatedByUserId,
                 Amount = p.Amount,
                 Timestamp = p.Timestamp
             });
@@ -55,7 +57,8 @@ namespace BudgetSplitter.App.Services.PaymentService;
 
         public async Task<PaymentResponseDto> CreatePaymentForExpenseAsync(
             Guid groupId,
-            CreatePaymentForExpenseRequestDto dto)
+            CreatePaymentForExpenseRequestDto dto,
+            Guid createdByUserId)
         {
             var expense = await _db.Expenses
                 .Include(e => e.Shares)
@@ -85,6 +88,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Expense =  expense,
                 FromUserId = dto.FromUserId,
                 ToUserId = expense.PayerId,
+                CreatedByUserId = createdByUserId,
                 Amount = dto.Amount,
                 Timestamp = DateTime.UtcNow
             };
@@ -97,6 +101,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 ExpenseId = payment.Expense.Id,
                 FromUserId = payment.FromUserId,
                 ToUserId = payment.ToUserId,
+                CreatedByUserId = payment.CreatedByUserId,
                 Amount = payment.Amount,
                 Timestamp = payment.Timestamp
             };
@@ -104,7 +109,8 @@ namespace BudgetSplitter.App.Services.PaymentService;
 
         public async Task<PaymentResponseDto> CreateDirectPaymentAsync(
             Guid groupId,
-            CreateDirectPaymentRequestDto dto)
+            CreateDirectPaymentRequestDto dto,
+            Guid createdByUserId)
         {
             var members = await _db.UserGroups
                 .Where(ug => ug.GroupId == groupId && 
@@ -120,6 +126,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 Expense = null,
                 FromUserId = dto.FromUserId,
                 ToUserId = dto.ToUserId,
+                CreatedByUserId = createdByUserId,
                 Amount = dto.Amount,
                 Timestamp = DateTime.UtcNow
             };
@@ -132,6 +139,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 ExpenseId = payment.Expense?.Id,
                 FromUserId = payment.FromUserId,
                 ToUserId = payment.ToUserId,
+                CreatedByUserId = payment.CreatedByUserId,
                 Amount = payment.Amount,
                 Timestamp = payment.Timestamp
             };

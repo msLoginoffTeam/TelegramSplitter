@@ -1,4 +1,6 @@
+using BudgetSplitter.App.Authorization;
 using BudgetSplitter.App.Services.PaymentService;
+using BudgetSplitter.Common.Authorization;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using Microsoft.AspNetCore.Authorization;
@@ -15,13 +17,25 @@ namespace BudgetSplitter.App.Controllers
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
-        public PaymentsController(IPaymentService paymentService) => _paymentService = paymentService;
+        private readonly ICurrentUserService _currentUser;
+        private readonly IGroupAuthorizationService _groupAuthorization;
+
+        public PaymentsController(
+            IPaymentService paymentService,
+            ICurrentUserService currentUser,
+            IGroupAuthorizationService groupAuthorization)
+        {
+            _paymentService = paymentService;
+            _currentUser = currentUser;
+            _groupAuthorization = groupAuthorization;
+        }
 
         /// <summary>
         /// Retrieves all payments (expense-based and direct) in the group.
         /// </summary>
         /// <param name="groupId">ID of the group.</param>
         [HttpGet]
+        [RequireGroupPermission(GroupPermission.ViewGroup)]
         public async Task<ActionResult<IEnumerable<PaymentResponseDto>>> GetPayments(Guid groupId)
         {
             var payments = await _paymentService.GetGroupPaymentsAsync(groupId);
@@ -35,11 +49,13 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="dto">Payment details (expense ID, payer, amount).</param>
         /// <returns>The created PaymentResponseDto.</returns>
         [HttpPost("expense")]
+        [RequireGroupPermission(GroupPermission.CreatePayment)]
         public async Task<ActionResult<PaymentResponseDto>> CreatePaymentForExpense(
             Guid groupId,
             [FromBody] CreatePaymentForExpenseRequestDto dto)
         {
-            var result = await _paymentService.CreatePaymentForExpenseAsync(groupId, dto);
+            var user = await _currentUser.GetRequiredUserAsync();
+            var result = await _paymentService.CreatePaymentForExpenseAsync(groupId, dto, user.Id);
             return Ok(result);
         }
 
@@ -50,11 +66,13 @@ namespace BudgetSplitter.App.Controllers
         /// <param name="dto">Direct payment details (from, to, amount).</param>
         /// <returns>The created PaymentResponseDto.</returns>
         [HttpPost("direct")]
+        [RequireGroupPermission(GroupPermission.CreatePayment)]
         public async Task<ActionResult<PaymentResponseDto>> CreateDirectPayment(
             Guid groupId,
             [FromBody] CreateDirectPaymentRequestDto dto)
         {
-            var result = await _paymentService.CreateDirectPaymentAsync(groupId, dto);
+            var user = await _currentUser.GetRequiredUserAsync();
+            var result = await _paymentService.CreateDirectPaymentAsync(groupId, dto, user.Id);
             return Ok(result);
         }
 
@@ -70,6 +88,11 @@ namespace BudgetSplitter.App.Controllers
             Guid paymentId,
             [FromBody] UpdatePaymentRequestDto dto)
         {
+            await _groupAuthorization.EnsurePaymentPermissionAsync(
+                groupId,
+                paymentId,
+                GroupPermission.UpdateOwnPayment,
+                GroupPermission.UpdateAnyPayment);
             await _paymentService.UpdatePaymentAsync(groupId, paymentId, dto);
             return Ok();
         }
@@ -82,6 +105,11 @@ namespace BudgetSplitter.App.Controllers
         [HttpDelete("{paymentId:guid}")]
         public async Task<IActionResult> DeletePayment(Guid groupId, Guid paymentId)
         {
+            await _groupAuthorization.EnsurePaymentPermissionAsync(
+                groupId,
+                paymentId,
+                GroupPermission.DeleteOwnPayment,
+                GroupPermission.DeleteAnyPayment);
             await _paymentService.DeletePaymentAsync(groupId, paymentId);
             return Ok();
         }

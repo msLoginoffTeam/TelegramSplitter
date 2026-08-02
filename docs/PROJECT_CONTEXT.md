@@ -51,7 +51,9 @@ Telegram Mini App для совместных расходов: группы, т
 - Production принимает `X-Telegram-Init-Data` и проверяет Telegram HMAC с `TelegramAuth:BotToken`; `auth_date` по умолчанию действует 24 часа.
 - `Development` принимает `X-Telegram-Dev-User-Id` только для локальной разработки. Это Telegram ID, не внутренний UUID пользователя.
 - Подтверждённый Telegram ID хранится в `HttpContext.User` как `ClaimTypes.NameIdentifier` и `telegram_id` claim.
-- Authentication не заменяет group authorization: доступ к каждой конкретной группе будет добавлен следующим этапом.
+- Group authorization реализуется через membership и точечные permissions, хранимые в `GroupMemberPermissions`.
+- `RequireGroupPermission` на action требует все перечисленные права (AND) и намеренно не допускает повторения на одном action. Если когда-нибудь понадобится статическое OR, будет введён отдельный явно названный `RequireAnyGroupPermission`; сейчас такого кейса нет. Проверки `own/any` для уже существующей траты или платежа остаются в `IGroupAuthorizationService`, так как требуют загрузить автора записи.
+- В ответе group details `Members` содержит пользователя, его permissions, вычисленную UI-роль и флаг owner. Роли — только presets для UI; источником истины остаются permissions.
 
 ## Принятая структура репозиториев
 
@@ -68,7 +70,7 @@ Frontend не пишет API-контракты вручную: OpenAPI snapshot
 
 ## Направление реализации
 
-1. Изменения временно ведутся прямо в `main` обоих репозиториев по решению владельца.
+1. Обычно изменения ведутся прямо в `main`; текущая задача permissions временно находится в отдельной пользовательской feature-ветке и будет слита одним коммитом.
 2. Стабилизировать backend: group authorization, денежные инварианты, транзакции, migrations и расширение tests.
 3. Нормализовать OpenAPI и генерировать Go/TypeScript clients с CI drift check.
 4. Реализовать отдельный React + TypeScript Mini App: список групп, dashboard, expense wizard, payments, transfers, members/settings.
@@ -86,7 +88,7 @@ Frontend не пишет API-контракты вручную: OpenAPI snapshot
 ## Критические инварианты
 
 - Сумма долей равна `TotalAmount`, один пользователь встречается в долях не более одного раза.
-- Плательщик и участники состоят в группе; суммы строго положительны; `FromUser != ToUser`.
+- Плательщик и участники состоят в группе; один участник может иметь только одну долю в трате. Положительность сумм и запрет `FromUser == ToUser` ещё предстоит добавить.
 - Сумма балансов группы равна нулю.
 - Предложенные transfers полностью обнуляют балансы.
 - Изменение/удаление payment не оставляет ложный `IsPaid`.

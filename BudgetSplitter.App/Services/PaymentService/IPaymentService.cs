@@ -20,14 +20,16 @@ public interface IPaymentService
     /// </summary>
     Task<PaymentResponseDto> CreatePaymentForExpenseAsync(
         Guid groupId,
-        CreatePaymentForExpenseRequestDto dto);
+        CreatePaymentForExpenseRequestDto dto,
+        Guid createdByUserId);
 
     /// <summary>
     /// Создать прямой перевод между участниками
     /// </summary>
     Task<PaymentResponseDto> CreateDirectPaymentAsync(
         Guid groupId,
-        CreateDirectPaymentRequestDto dto);
+        CreateDirectPaymentRequestDto dto,
+        Guid createdByUserId);
 
     /// <summary>
     /// Обновить сумму платежа

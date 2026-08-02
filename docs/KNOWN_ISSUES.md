@@ -5,11 +5,11 @@
 | ID | Приоритет | Статус | Область | Проблема / риск |
 |---|---|---|---|---|
 | TS-001 | P1 | fixed | Local Git | Устаревшая локальная копия backend `/Users/max/RiderProjects/TelegramSplitter` удалена; канонической остаётся `/Users/max/RiderProjects/BudgetSplitterWebApi`. |
-| TS-002 | P0 | open | Security | Telegram `initData` validation и authentication добавлены для всех `/api` controller endpoints; в Development доступен отдельный dev header. Group-level authorization и отказ от user IDs в DTO ещё не сделаны, поэтому клиент всё ещё может попытаться действовать от имени другого участника. |
-| TS-003 | P0 | open | Backend | Удаление expense и participant не проверяет переданный `groupId` (коммиты `3deda12`, `becaea4`), допуская cross-group mutation. |
+| TS-002 | P0 | fixed | Security | Все group-scoped endpoints требуют membership и нужное permission. Статические правила задаются декларативно через `RequireGroupPermission`; операции `own/any` сверяют автора записи и route `groupId`. |
+| TS-003 | P0 | fixed | Backend | Удаление expense и participant сверяют переданный `groupId`, поэтому cross-group mutation отклоняется. |
 | TS-004 | P0 | fixed | Secrets | `Program.cs` больше не выводит connection string в stdout. |
-| TS-005 | P0 | open | Data | `CreateExpenseAsync` сохраняет expense до проверки shares и делает два `SaveChanges`; при ошибке остаётся неполная трата. |
-| TS-006 | P0 | open | Data | Не проверяется membership payer/share users; нет unique index `(ExpenseId, UserId)`. Возможны чужие участники и дубли долей, хотя balance использует `Single`. |
+| TS-005 | P0 | fixed | Data | `CreateExpenseAsync` валидирует доли до сохранения и сохраняет expense со всеми shares одним `SaveChanges`. |
+| TS-006 | P0 | planned | Data | Создание расходов проверяет membership payer/share users и дубли в DTO. Для защиты от гонок всё ещё нужен unique index `(ExpenseId, UserId)`. |
 | TS-007 | P0 | open | Money | DTO допускают нулевые/отрицательные суммы, `FromUser == ToUser` и пустые title. Нет валюты группы и явных правил округления. |
 | TS-008 | P1 | open | Groups | Создатель группы не добавляется в `UserGroups`, поэтому детали/балансы могут его не показывать. |
 | TS-009 | P1 | open | Payments | `IsPaid` ставится в `true`, но не сбрасывается при уменьшении/удалении payment или изменении share. |
@@ -20,7 +20,7 @@
 | TS-014 | P1 | open | Bot | Сценарные состояния хранятся в глобальных `map` без mutex, TTL и persistence: race risk, утечки и потеря состояния после рестарта. |
 | TS-015 | P1 | open | Bot | `GetUserUUIDbyid` передаёт message по значению и декодирует user response как `GroupResponseDto`, скрывая ошибки и создавая риск nil/panic. |
 | TS-016 | P1 | planned | API clients | Репозитории остаются раздельными. Нужна автоматическая генерация Go и TypeScript/React Query clients из OpenAPI плюс CI drift check. |
-| TS-017 | P1 | open | Testing | Есть reusable test foundation и 8 tests для Telegram auth: unit validation плюс integration API/PostgreSQL. Денежные операции, group authorization, migrations и transfers пока не покрыты; новый workflow запускает `dotnet test` на push/PR. |
+| TS-017 | P1 | open | Testing | Есть reusable test foundation и 8 tests для Telegram auth: unit validation плюс integration API/PostgreSQL. Новые permissions, ownership transfer, migrations, денежные операции и transfers пока не покрыты отдельными сценариями; новый workflow запускает `dotnet test` на push/PR. |
 | TS-018 | P1 | fixed | Docker | Backend Compose теперь поднимает только `db` и `api`; frontend имеет независимый Compose. Локальный основной путь — БД в Docker и API из IDE. Bot намеренно не включён. |
 | TS-019 | P2 | open | Docker/CI | Backend Compose готов для контейнерной поставки, но API healthcheck, non-root runtime и CI/CD deployment policy ещё нужно определить перед VPS. |
 | TS-020 | P2 | fixed | Git | `.gitignore` больше не маскирует все `appsettings.*.json`, Dockerfile и Compose-файлы; локально секретными остаются только `.env` и `appsettings.Local.json`. |

@@ -67,8 +67,29 @@ public class ExpenseService : IExpenseService
         };
     }
 
-    public async Task<ExpenseResponseDto> CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto, Guid createdByUserId)
+    public async Task<ExpenseResponseDto> CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto,
+        Guid createdByUserId)
     {
+        var shareUserIds = dto.Shares.Select(share => share.UserId).ToArray();
+        if (shareUserIds.Contains(dto.PayerId))
+        {
+            throw new BadRequestException("Payer must not be duplicated in expense shares.");
+        }
+
+        if (shareUserIds.Distinct().Count() != shareUserIds.Length)
+        {
+            throw new BadRequestException("An expense can contain only one share per participant.");
+        }
+
+        await EnsureGroupMembersAsync(groupId, shareUserIds.Append(dto.PayerId));
+
+        var sharesTotal = dto.Shares.Sum(share => share.Amount);
+        if (sharesTotal > dto.TotalAmount)
+        {
+            throw new BadRequestException(
+                $"Сумма долей ({sharesTotal}) превышает общую сумму {dto.TotalAmount}");
+        }
+
         var expense = new Expense
         {
             GroupId = groupId,
@@ -80,15 +101,8 @@ public class ExpenseService : IExpenseService
             IsDraft = dto.IsDraft
         };
         _db.Expenses.Add(expense);
-        await _db.SaveChangesAsync();
 
-        var shares = dto.Shares;
-        var sumOthers = shares.Sum(s => s.Amount);
-        if (sumOthers > expense.TotalAmount)
-            throw new BadRequestException(
-                $"Сумма долей ({sumOthers}) превышает общую сумму {expense.TotalAmount}");
-
-        foreach (var s in shares)
+        foreach (var s in dto.Shares)
         {
             _db.ExpenseShares.Add(new ExpenseShare
             {
@@ -99,7 +113,7 @@ public class ExpenseService : IExpenseService
             });
         }
 
-        var remainder = expense.TotalAmount - sumOthers;
+        var remainder = expense.TotalAmount - sharesTotal;
         _db.ExpenseShares.Add(new ExpenseShare
         {
             ExpenseId = expense.Id,
@@ -151,7 +165,7 @@ public class ExpenseService : IExpenseService
     public async Task DeleteExpenseAsync(Guid groupId, Guid expenseId)
     {
         var expense = await _db.Expenses
-            .FirstOrDefaultAsync(e => e.Id == expenseId);
+            .FirstOrDefaultAsync(e => e.Id == expenseId && e.GroupId == groupId);
         if (expense == null) return;
         _db.Expenses.Remove(expense);
         await _db.SaveChangesAsync();
@@ -188,6 +202,8 @@ public class ExpenseService : IExpenseService
                       ?? throw new NotFoundException($"Expense {expenseId} not found");
         if (expense.GroupId != groupId)
             throw new BadRequestException("Wrong group");
+
+        await EnsureGroupMembersAsync(groupId, [share.UserId]);
 
         var exists = await _db.ExpenseShares
             .AnyAsync(s => s.ExpenseId == expenseId && s.UserId == share.UserId);
@@ -288,8 +304,12 @@ public class ExpenseService : IExpenseService
         if (share == null)
             return;
 
+        if (share.Expense.GroupId != groupId)
+        {
+            throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
+        }
+
         _db.ExpenseShares.Remove(share);
-        await _db.SaveChangesAsync();
 
         var expense = share.Expense;
         var sumOthers = await _db.ExpenseShares
@@ -316,5 +336,18 @@ public class ExpenseService : IExpenseService
         }
 
         await _db.SaveChangesAsync();
+    }
+
+    private async Task EnsureGroupMembersAsync(Guid groupId, IEnumerable<Guid> userIds)
+    {
+        var requiredUserIds = userIds.Distinct().ToArray();
+        var memberCount = await _db.UserGroups
+            .CountAsync(membership =>
+                membership.GroupId == groupId && requiredUserIds.AsEnumerable().Contains(membership.UserId));
+
+        if (memberCount != requiredUserIds.Length)
+        {
+            throw new BadRequestException("Payer and expense participants must be members of the group.");
+        }
     }
 }

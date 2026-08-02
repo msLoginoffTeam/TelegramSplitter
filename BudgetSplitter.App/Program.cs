@@ -26,7 +26,7 @@ builder.Configuration.AddEnvironmentVariables();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options => options.Filters.AddService<GroupPermissionAuthorizationFilter>());
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<TelegramAuthOptions>(
@@ -74,6 +74,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IGroupAuthorizationService, GroupAuthorizationService>();
+builder.Services.AddScoped<GroupPermissionAuthorizationFilter>();
 
 builder.Services.AddDbContext<AppDbContext>(opts =>
 {
