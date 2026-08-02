@@ -1,6 +1,6 @@
 # Telegram Splitter — контекст проекта
 
-Обновлено: 2026-08-02.
+Обновлено: 2026-08-03.
 
 ## Карта знаний
 
@@ -13,8 +13,8 @@
 
 - Backend: <https://github.com/msLoginoffTeam/TelegramSplitter>
   - активная локальная копия: `/Users/max/RiderProjects/BudgetSplitterWebApi`;
-  - `main`: `becaea4` (`0.0.47`), hash совпадает с GitHub на 2026-08-01;
-  - remote настроен через SSH, но SSH-ключ недоступен из текущей Codex-среды; HTTPS-проверка работает.
+  - `main`: `c786244` (`cash adjustments and validation`), опубликован в GitHub на 2026-08-03;
+  - remote использует HTTPS.
 - Telegram adapter: <https://github.com/msLoginoffTeam/tg_splitter_adapter>
   - `main`: `dd8e487` на момент проверки;
   - Go 1.23.5, long polling, сгенерированный OpenAPI-клиент.
@@ -28,11 +28,11 @@
 - ASP.NET Core / EF Core / PostgreSQL 16, target `net10.0`; SDK фиксирован в `global.json` (`10.0.101`), локальный `dotnet-ef` — в `.config/dotnet-tools.json`.
 - `AppDbContextDesignTimeFactory` из persistence-проекта изолирует EF tooling от запуска API и автоматического применения migration; `dotnet ef migrations add` больше не требует локальную БД.
 - На текущем этапе БД считается чистой: новые migrations не обязаны переносить или чинить исторические production-данные. Перед первым реальным production deployment это решение нужно пересмотреть.
-- Backend собирается успешно, но остаются два compiler warning: nullable navigation `Group.CreatedBy` и неверный XML `param` в `ExpensesController`.
-- Есть 4 unit и 4 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
+- Backend собирается без compiler warnings.
+- Есть 16 unit и 31 integration test. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
 - Docker CLI и OrbStack доступны; Compose разделён между репозиториями.
-- В активной копии есть пользовательское незакоммиченное изменение `appsettings.Development.json`; не перезаписывать и не выводить его секреты.
+- Локальные секреты остаются только в игнорируемых `appsettings.Local.json`/`.env`; не выводить и не коммитить их.
 
 ## Цель продукта
 
@@ -75,10 +75,10 @@ Frontend не пишет API-контракты вручную: OpenAPI snapshot
 
 ## Направление реализации
 
-1. Обычно изменения ведутся прямо в `main`; текущая задача permissions временно находится в отдельной пользовательской feature-ветке и будет слита одним коммитом.
-2. Стабилизировать backend: group authorization завершена; следующий P0 — денежные инварианты, транзакции и constraints в БД.
-3. Нормализовать OpenAPI и генерировать Go/TypeScript clients с CI drift check.
-4. Реализовать отдельный React + TypeScript Mini App: список групп, dashboard, expense wizard, payments, transfers, members/settings.
+1. Изменения backend и frontend сейчас ведутся прямо в `main`.
+2. Backend P0 завершён: group authorization, денежные инварианты, транзакции и constraints в БД покрыты тестами.
+3. Обновить OpenAPI-контракт после денежного блока и включить его в frontend handoff.
+4. Реализовать отдельный React + TypeScript Mini App: сначала каркас ключевых сценариев — список и создание групп, затем dashboard, траты, платежи, transfers, members/settings.
 5. Сократить Go-бот до Telegram entrypoint: `/start`, запуск Mini App, group deep links, приглашения, уведомления и публикация итогов.
 6. Проверить независимые Compose-сценарии backend и frontend, затем E2E и только после этого VPS deployment.
 
