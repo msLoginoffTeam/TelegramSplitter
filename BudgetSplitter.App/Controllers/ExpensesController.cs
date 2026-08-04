@@ -87,6 +87,25 @@ namespace BudgetSplitter.App.Controllers
         }
 
         /// <summary>
+        /// Replaces an expense's editable fields and participant shares atomically.
+        /// </summary>
+        [HttpPut("{expenseId:guid}")]
+        public async Task<ActionResult<ExpenseResponseDto>> UpdateExpense(
+            Guid groupId,
+            Guid expenseId,
+            [FromBody] UpdateExpenseRequestDto dto)
+        {
+            await _groupAuthorization.EnsureExpensePermissionAsync(
+                groupId,
+                expenseId,
+                GroupPermission.UpdateOwnExpense,
+                GroupPermission.UpdateAnyExpense);
+
+            var response = await _expenseService.UpdateExpenseAsync(groupId, expenseId, dto);
+            return Ok(response);
+        }
+
+        /// <summary>
         /// Updates an existing expense’s title
         /// </summary>
         /// <param name="groupId">ID of the group containing the expense.</param>

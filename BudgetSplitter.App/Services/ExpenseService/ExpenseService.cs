@@ -150,6 +150,95 @@ public class ExpenseService : IExpenseService
         await transaction.CommitAsync();
     }
 
+    public async Task<ExpenseResponseDto> UpdateExpenseAsync(
+        Guid groupId,
+        Guid expenseId,
+        UpdateExpenseRequestDto dto)
+    {
+        EnsureValidTitle(dto.Title);
+        EnsurePositiveAmount(dto.TotalAmount, "Total amount");
+
+        var shareUserIds = dto.Shares.Select(share => share.UserId).ToArray();
+        if (shareUserIds.Contains(dto.PayerId))
+        {
+            throw new BadRequestException("Payer must not be duplicated in expense shares.");
+        }
+
+        if (shareUserIds.Distinct().Count() != shareUserIds.Length)
+        {
+            throw new BadRequestException("An expense can contain only one share per participant.");
+        }
+
+        if (dto.Shares.Any(share => share.Amount <= 0))
+        {
+            throw new BadRequestException("Each expense participant share must be positive.");
+        }
+
+        var sharesTotal = dto.Shares.Sum(share => share.Amount);
+        if (sharesTotal > dto.TotalAmount)
+        {
+            throw new BadRequestException(
+                $"Сумма долей ({sharesTotal}) превышает общую сумму {dto.TotalAmount}");
+        }
+
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await LockExpenseAsync(expenseId);
+
+        var expense = await _db.Expenses
+            .Include(candidate => candidate.Shares)
+            .Include(candidate => candidate.Payments)
+            .SingleOrDefaultAsync(candidate => candidate.Id == expenseId && candidate.GroupId == groupId);
+        if (expense is null)
+        {
+            throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
+        }
+
+        await EnsureGroupMembersAsync(groupId, shareUserIds.Append(dto.PayerId));
+
+        if (expense.Payments.Count > 0 && expense.PayerId != dto.PayerId)
+        {
+            throw new BadRequestException("Payer cannot be changed after payments have been recorded for an expense.");
+        }
+
+        var sharesByUserId = dto.Shares.ToDictionary(share => share.UserId, share => share.Amount);
+        foreach (var paymentsBySender in expense.Payments.GroupBy(payment => payment.FromUserId))
+        {
+            var paidAmount = paymentsBySender.Sum(payment => payment.Amount);
+            if (!sharesByUserId.TryGetValue(paymentsBySender.Key, out var updatedShare) || updatedShare < paidAmount)
+            {
+                throw new BadRequestException(
+                    "Expense participant share cannot be removed or reduced below payments already recorded for it.");
+            }
+        }
+
+        expense.Title = dto.Title;
+        expense.TotalAmount = dto.TotalAmount;
+        expense.PayerId = dto.PayerId;
+
+        _db.ExpenseShares.RemoveRange(expense.Shares);
+        foreach (var share in dto.Shares)
+        {
+            _db.ExpenseShares.Add(new ExpenseShare
+            {
+                ExpenseId = expense.Id,
+                UserId = share.UserId,
+                Amount = share.Amount
+            });
+        }
+
+        _db.ExpenseShares.Add(new ExpenseShare
+        {
+            ExpenseId = expense.Id,
+            UserId = expense.PayerId,
+            Amount = expense.TotalAmount - sharesTotal
+        });
+
+        await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return await GetExpenseByIdAsync(groupId, expenseId);
+    }
+
     public async Task DeleteExpenseAsync(Guid groupId, Guid expenseId)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync();
