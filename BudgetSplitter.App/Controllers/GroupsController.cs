@@ -70,7 +70,8 @@ namespace BudgetSplitter.App.Controllers
         public async Task<ActionResult<GroupResponseDto>> CreateGroup([FromBody] CreateGroupRequestDto dto)
         {
             var user = await _currentUser.GetRequiredUserAsync();
-            return Ok(await _groupService.CreateGroupAsync(dto, user));
+            var group = await _groupService.CreateGroupAsync(dto, user);
+            return CreatedAtAction(nameof(GetGroup), new { groupId = group.Id }, group);
         }
         
         /// <summary>
