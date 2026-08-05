@@ -498,7 +498,7 @@ public class ExpenseService : IExpenseService
             Shares = expense.Shares.Select(share => new ExpenseShareResponseDto
             {
                 UserId = share.UserId,
-                UserName = share.User.DisplayName,
+                DisplayName = share.User.DisplayName,
                 Username = share.User.Username,
                 Amount = share.Amount,
                 IsPaid = ExpenseShareSettlement.IsPaid(

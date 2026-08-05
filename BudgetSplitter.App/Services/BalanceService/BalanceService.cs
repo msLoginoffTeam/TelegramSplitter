@@ -103,9 +103,9 @@ public class BalanceService : IBalanceService
                 FromUserId = debtor,
                 ToUserId = creditor,
                 Amount = transfer,
-                FromUserName = debtorName,
+                FromDisplayName = debtorName,
                 FromUsername = debtorUsername,
-                ToUserName = creditorName,
+                ToDisplayName = creditorName,
                 ToUsername = creditorUsername
             });
 
