@@ -17,4 +17,6 @@ public interface IGroupService
     Task RemoveUserAsync(Guid groupId, Guid userId);
     Task UpdateMemberPermissionsAsync(Guid groupId, Guid userId, UpdateGroupMemberPermissionsRequestDto dto);
     Task TransferOwnershipAsync(Guid groupId, Guid newOwnerUserId);
+    Task<GroupInviteResponseDto> CreateInviteAsync(Guid groupId, Guid createdByUserId);
+    Task<GroupOverviewResponseDto> AcceptInviteAsync(string token, User user);
 }

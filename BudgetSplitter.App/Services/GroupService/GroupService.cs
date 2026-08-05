@@ -2,15 +2,31 @@ using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using BudgetSplitter.Common.Exceptions;
 using BudgetSplitter.Common.Authorization;
+using BudgetSplitter.App.Authentication;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Persistence;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace BudgetSplitter.App.Services.GroupService;
 
 public class GroupService : IGroupService
 {
     private readonly AppDbContext _db;
-    public GroupService(AppDbContext db) => _db = db;
+    private readonly TelegramAuthOptions _telegramOptions;
+    private readonly TelegramBotIdentityService _botIdentity;
+
+    public GroupService(
+        AppDbContext db,
+        IOptions<TelegramAuthOptions> telegramOptions,
+        TelegramBotIdentityService botIdentity)
+    {
+        _db = db;
+        _telegramOptions = telegramOptions.Value;
+        _botIdentity = botIdentity;
+    }
 
     public async Task<IEnumerable<GroupOverviewResponseDto>> GetMyGroupsAsync(Guid userId)
     {
@@ -224,6 +240,82 @@ public class GroupService : IGroupService
         group.OwnerId = newOwnerUserId;
         await _db.SaveChangesAsync();
     }
+
+    public async Task<GroupInviteResponseDto> CreateInviteAsync(Guid groupId, Guid createdByUserId)
+    {
+        var groupExists = await _db.Groups.AnyAsync(group => group.Id == groupId);
+        if (!groupExists)
+        {
+            throw new NotFoundException($"Group {groupId} not found");
+        }
+
+        var botUsername = await _botIdentity.GetUsernameAsync();
+
+        var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        var now = DateTime.UtcNow;
+        var expiresAt = now.AddHours(Math.Max(1, _telegramOptions.InviteExpirationHours));
+
+        _db.GroupInvites.Add(new GroupInvite
+        {
+            GroupId = groupId,
+            CreatedByUserId = createdByUserId,
+            TokenHash = HashInviteToken(token),
+            CreatedAtUtc = now,
+            ExpiresAtUtc = expiresAt
+        });
+        await _db.SaveChangesAsync();
+
+        return new GroupInviteResponseDto
+        {
+            InviteUrl = $"https://t.me/{botUsername}?startapp=invite_{token}",
+            ExpiresAtUtc = expiresAt
+        };
+    }
+
+    public async Task<GroupOverviewResponseDto> AcceptInviteAsync(string token, User user)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new BadRequestException("Invite token is required.");
+        }
+
+        var invite = await _db.GroupInvites
+            .Include(candidate => candidate.Group)
+            .SingleOrDefaultAsync(candidate => candidate.TokenHash == HashInviteToken(token));
+
+        if (invite is null || invite.RevokedAtUtc is not null || invite.ExpiresAtUtc <= DateTime.UtcNow)
+        {
+            throw new BadRequestException("Invite link is invalid or expired.");
+        }
+
+        var isMember = await _db.UserGroups.AnyAsync(
+            membership => membership.GroupId == invite.GroupId && membership.UserId == user.Id);
+        if (!isMember)
+        {
+            _db.UserGroups.Add(new UserGroup
+            {
+                GroupId = invite.GroupId,
+                UserId = user.Id
+            });
+            _db.GroupMemberPermissions.AddRange(
+                GroupRolePresets.GetPermissions(GroupRole.Member).Select(permission => new GroupMemberPermission
+                {
+                    GroupId = invite.GroupId,
+                    UserId = user.Id,
+                    Permission = permission
+                }));
+            await _db.SaveChangesAsync();
+        }
+
+        return new GroupOverviewResponseDto
+        {
+            Id = invite.Group.Id,
+            Title = invite.Group.Title
+        };
+    }
+
+    private static string HashInviteToken(string token)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     private static IReadOnlySet<GroupPermission> ResolvePermissions(UpdateGroupMemberPermissionsRequestDto dto)
     {

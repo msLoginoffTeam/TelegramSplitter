@@ -16,6 +16,7 @@ namespace Persistence
         public DbSet<Expense> Expenses { get; set; } = null!;
         public DbSet<ExpenseShare> ExpenseShares { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<GroupInvite> GroupInvites { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -69,6 +70,22 @@ namespace Persistence
                     .WithMany(m => m.Permissions)
                     .HasForeignKey(p => new { p.UserId, p.GroupId })
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<GroupInvite>(b =>
+            {
+                b.HasKey(invite => invite.Id);
+                b.HasIndex(invite => invite.TokenHash).IsUnique();
+
+                b.HasOne(invite => invite.Group)
+                    .WithMany()
+                    .HasForeignKey(invite => invite.GroupId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                b.HasOne(invite => invite.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(invite => invite.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Expense

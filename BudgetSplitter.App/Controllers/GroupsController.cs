@@ -147,5 +147,21 @@ namespace BudgetSplitter.App.Controllers
             await _groupService.TransferOwnershipAsync(groupId, dto.NewOwnerUserId);
             return NoContent();
         }
+
+        [HttpPost("{groupId:guid}/invites")]
+        [RequireGroupPermission(GroupPermission.ManageMembers)]
+        public async Task<ActionResult<GroupInviteResponseDto>> CreateInvite(Guid groupId)
+        {
+            var user = await _currentUser.GetRequiredUserAsync();
+            return StatusCode(StatusCodes.Status201Created, await _groupService.CreateInviteAsync(groupId, user.Id));
+        }
+
+        [HttpPost("/api/group-invites/accept")]
+        public async Task<ActionResult<GroupOverviewResponseDto>> AcceptInvite(
+            [FromBody] AcceptGroupInviteRequestDto dto)
+        {
+            var user = await _currentUser.GetRequiredUserAsync();
+            return Ok(await _groupService.AcceptInviteAsync(dto.Token, user));
+        }
     }
 }

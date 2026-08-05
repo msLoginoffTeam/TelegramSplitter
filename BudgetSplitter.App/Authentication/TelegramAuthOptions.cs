@@ -6,5 +6,9 @@ public sealed class TelegramAuthOptions
 
     public string? BotToken { get; set; }
 
+    public string? BotUsername { get; set; }
+
     public int MaxAuthAgeSeconds { get; set; } = 86_400;
+
+    public int InviteExpirationHours { get; set; } = 168;
 }

@@ -32,6 +32,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<TelegramAuthOptions>(
     builder.Configuration.GetSection(TelegramAuthOptions.SectionName));
 builder.Services.AddSingleton<TelegramInitDataValidator>();
+builder.Services.AddHttpClient<TelegramBotIdentityService>();
 builder.Services
     .AddAuthentication(TelegramAuthDefaults.Scheme)
     .AddScheme<AuthenticationSchemeOptions, TelegramAuthenticationHandler>(
