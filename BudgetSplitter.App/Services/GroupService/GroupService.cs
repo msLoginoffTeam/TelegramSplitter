@@ -3,6 +3,7 @@ using BudgetSplitter.Common.Dtos.Response;
 using BudgetSplitter.Common.Exceptions;
 using BudgetSplitter.Common.Authorization;
 using BudgetSplitter.App.Authentication;
+using BudgetSplitter.App.Infrastructure.Database;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -280,43 +281,58 @@ public class GroupService : IGroupService
             throw new BadRequestException("Invite token is required.");
         }
 
-        var invite = await _db.GroupInvites
-            .Include(candidate => candidate.Group)
-            .SingleOrDefaultAsync(candidate => candidate.TokenHash == HashInviteToken(token));
-
-        if (invite is null || invite.RevokedAtUtc is not null || invite.ExpiresAtUtc <= DateTime.UtcNow)
+        return await _db.ExecuteInTransactionAsync(async () =>
         {
-            throw new BadRequestException("Invite link is invalid or expired.");
-        }
+            var invite = await _db.GroupInvites
+                .Include(candidate => candidate.Group)
+                .SingleOrDefaultAsync(candidate => candidate.TokenHash == HashInviteToken(token));
 
-        var isMember = await _db.UserGroups.AnyAsync(
-            membership => membership.GroupId == invite.GroupId && membership.UserId == user.Id);
-        if (!isMember)
-        {
-            _db.UserGroups.Add(new UserGroup
+            if (invite is null)
             {
-                GroupId = invite.GroupId,
-                UserId = user.Id
-            });
-            _db.GroupMemberPermissions.AddRange(
-                GroupRolePresets.GetPermissions(GroupRole.Member).Select(permission => new GroupMemberPermission
+                throw new BadRequestException("Invite link is invalid or expired.");
+            }
+
+            await LockInviteAsync(invite.Id);
+
+            if (invite.RevokedAtUtc is not null || invite.ExpiresAtUtc <= DateTime.UtcNow)
+            {
+                throw new BadRequestException("Invite link is invalid or expired.");
+            }
+
+            var isMember = await _db.UserGroups.AnyAsync(
+                membership => membership.GroupId == invite.GroupId && membership.UserId == user.Id);
+            if (!isMember)
+            {
+                _db.UserGroups.Add(new UserGroup
                 {
                     GroupId = invite.GroupId,
-                    UserId = user.Id,
-                    Permission = permission
-                }));
-            await _db.SaveChangesAsync();
-        }
+                    UserId = user.Id
+                });
+                _db.GroupMemberPermissions.AddRange(
+                    GroupRolePresets.GetPermissions(GroupRole.Member).Select(permission => new GroupMemberPermission
+                    {
+                        GroupId = invite.GroupId,
+                        UserId = user.Id,
+                        Permission = permission
+                    }));
+                await _db.SaveChangesAsync();
+            }
 
-        return new GroupOverviewResponseDto
-        {
-            Id = invite.Group.Id,
-            Title = invite.Group.Title
-        };
+            return new GroupOverviewResponseDto
+            {
+                Id = invite.Group.Id,
+                Title = invite.Group.Title
+            };
+        });
     }
 
     private static string HashInviteToken(string token)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private async Task LockInviteAsync(Guid inviteId)
+    {
+        await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"GroupInvites\" WHERE \"Id\" = {inviteId} FOR UPDATE");
+    }
 
     private static IReadOnlySet<GroupPermission> ResolvePermissions(UpdateGroupMemberPermissionsRequestDto dto)
     {

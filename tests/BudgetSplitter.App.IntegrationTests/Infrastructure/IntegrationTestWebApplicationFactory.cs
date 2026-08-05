@@ -5,9 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.Extensions.Options;
 using Persistence;
 
 namespace BudgetSplitter.App.IntegrationTests.Infrastructure;
@@ -30,7 +28,12 @@ public sealed class IntegrationTestWebApplicationFactory : WebApplicationFactory
         {
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
-            services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_database.ConnectionString));
+            services.AddDbContext<AppDbContext>(options => options.UseNpgsql(
+                _database.ConnectionString,
+                npgsql => npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorCodesToAdd: null)));
             services.PostConfigure<TelegramAuthOptions>(options =>
             {
                 options.BotToken = TelegramInitDataBuilder.BotToken;

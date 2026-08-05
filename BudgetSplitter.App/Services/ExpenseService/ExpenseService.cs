@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using BudgetSplitter.App.Infrastructure.Database;
 using BudgetSplitter.Common.Dtos;
 using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
@@ -123,31 +124,32 @@ public class ExpenseService : IExpenseService
     {
         EnsurePositiveAmount(totalAmount, "Total amount");
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-        await LockExpenseAsync(expenseId);
-
-        var expense = await _db.Expenses
-            .Include(expense => expense.Payer).Include(expense => expense.Shares)
-            .ThenInclude(expenseShare => expenseShare.User)
-            .FirstOrDefaultAsync(e => e.Id == expenseId);
-        if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
-
-        var value = totalAmount - expense.TotalAmount;
-
-        var payer = expense.Shares.FirstOrDefault(share => share.UserId == expense.PayerId)
-                    ?? throw new BadRequestException("Payer share is missing from the expense.");
-        payer.Amount += value;
-
-        if (payer.Amount < 0)
+        await _db.ExecuteInTransactionAsync(async () =>
         {
-            throw new BadRequestException(
-                $"Сумма долей превышает новую общую сумму {totalAmount}");
-        }
+            await LockExpenseAsync(expenseId);
 
-        expense.TotalAmount = totalAmount;
+            var expense = await _db.Expenses
+                .Include(expense => expense.Payer).Include(expense => expense.Shares)
+                .ThenInclude(expenseShare => expenseShare.User)
+                .FirstOrDefaultAsync(e => e.Id == expenseId);
+            if (expense == null) throw new NotFoundException($"Expense {expenseId} not found");
 
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
+            var value = totalAmount - expense.TotalAmount;
+
+            var payer = expense.Shares.FirstOrDefault(share => share.UserId == expense.PayerId)
+                        ?? throw new BadRequestException("Payer share is missing from the expense.");
+            payer.Amount += value;
+
+            if (payer.Amount < 0)
+            {
+                throw new BadRequestException(
+                    $"Сумма долей превышает новую общую сумму {totalAmount}");
+            }
+
+            expense.TotalAmount = totalAmount;
+
+            await _db.SaveChangesAsync();
+        });
     }
 
     public async Task<ExpenseResponseDto> UpdateExpenseAsync(
@@ -181,74 +183,76 @@ public class ExpenseService : IExpenseService
                 $"Сумма долей ({sharesTotal}) превышает общую сумму {dto.TotalAmount}");
         }
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-        await LockExpenseAsync(expenseId);
-
-        var expense = await _db.Expenses
-            .Include(candidate => candidate.Shares)
-            .Include(candidate => candidate.Payments)
-            .SingleOrDefaultAsync(candidate => candidate.Id == expenseId && candidate.GroupId == groupId);
-        if (expense is null)
+        await _db.ExecuteInTransactionAsync(async () =>
         {
-            throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
-        }
+            await LockExpenseAsync(expenseId);
 
-        await EnsureGroupMembersAsync(groupId, shareUserIds.Append(dto.PayerId));
-
-        if (expense.Payments.Count > 0 && expense.PayerId != dto.PayerId)
-        {
-            throw new BadRequestException("Payer cannot be changed after payments have been recorded for an expense.");
-        }
-
-        var sharesByUserId = dto.Shares.ToDictionary(share => share.UserId, share => share.Amount);
-        foreach (var paymentsBySender in expense.Payments.GroupBy(payment => payment.FromUserId))
-        {
-            var paidAmount = paymentsBySender.Sum(payment => payment.Amount);
-            if (!sharesByUserId.TryGetValue(paymentsBySender.Key, out var updatedShare) || updatedShare < paidAmount)
+            var expense = await _db.Expenses
+                .Include(candidate => candidate.Shares)
+                .Include(candidate => candidate.Payments)
+                .SingleOrDefaultAsync(candidate => candidate.Id == expenseId && candidate.GroupId == groupId);
+            if (expense is null)
             {
-                throw new BadRequestException(
-                    "Expense participant share cannot be removed or reduced below payments already recorded for it.");
+                throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
             }
-        }
 
-        expense.Title = dto.Title;
-        expense.TotalAmount = dto.TotalAmount;
-        expense.PayerId = dto.PayerId;
+            await EnsureGroupMembersAsync(groupId, shareUserIds.Append(dto.PayerId));
 
-        _db.ExpenseShares.RemoveRange(expense.Shares);
-        foreach (var share in dto.Shares)
-        {
+            if (expense.Payments.Count > 0 && expense.PayerId != dto.PayerId)
+            {
+                throw new BadRequestException("Payer cannot be changed after payments have been recorded for an expense.");
+            }
+
+            var sharesByUserId = dto.Shares.ToDictionary(share => share.UserId, share => share.Amount);
+            foreach (var paymentsBySender in expense.Payments.GroupBy(payment => payment.FromUserId))
+            {
+                var paidAmount = paymentsBySender.Sum(payment => payment.Amount);
+                if (!sharesByUserId.TryGetValue(paymentsBySender.Key, out var updatedShare) || updatedShare < paidAmount)
+                {
+                    throw new BadRequestException(
+                        "Expense participant share cannot be removed or reduced below payments already recorded for it.");
+                }
+            }
+
+            expense.Title = dto.Title;
+            expense.TotalAmount = dto.TotalAmount;
+            expense.PayerId = dto.PayerId;
+
+            _db.ExpenseShares.RemoveRange(expense.Shares);
+            foreach (var share in dto.Shares)
+            {
+                _db.ExpenseShares.Add(new ExpenseShare
+                {
+                    ExpenseId = expense.Id,
+                    UserId = share.UserId,
+                    Amount = share.Amount
+                });
+            }
+
             _db.ExpenseShares.Add(new ExpenseShare
             {
                 ExpenseId = expense.Id,
-                UserId = share.UserId,
-                Amount = share.Amount
+                UserId = expense.PayerId,
+                Amount = expense.TotalAmount - sharesTotal
             });
-        }
 
-        _db.ExpenseShares.Add(new ExpenseShare
-        {
-            ExpenseId = expense.Id,
-            UserId = expense.PayerId,
-            Amount = expense.TotalAmount - sharesTotal
+            await _db.SaveChangesAsync();
         });
-
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
 
         return await GetExpenseByIdAsync(groupId, expenseId);
     }
 
     public async Task DeleteExpenseAsync(Guid groupId, Guid expenseId)
     {
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-        await LockExpenseAsync(expenseId);
-        var expense = await _db.Expenses
-            .FirstOrDefaultAsync(e => e.Id == expenseId && e.GroupId == groupId);
-        if (expense == null) return;
-        _db.Expenses.Remove(expense);
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
+        await _db.ExecuteInTransactionAsync(async () =>
+        {
+            await LockExpenseAsync(expenseId);
+            var expense = await _db.Expenses
+                .FirstOrDefaultAsync(e => e.Id == expenseId && e.GroupId == groupId);
+            if (expense == null) return;
+            _db.Expenses.Remove(expense);
+            await _db.SaveChangesAsync();
+        });
     }
 
     public async Task ConfirmExpenseAsync(Guid groupId, Guid expenseId)
@@ -278,57 +282,58 @@ public class ExpenseService : IExpenseService
     {
         EnsurePositiveAmount(share.Amount, "Expense participant share");
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-        await LockExpenseAsync(expenseId);
-
-        var expense = await _db.Expenses.FindAsync(expenseId)
-                      ?? throw new NotFoundException($"Expense {expenseId} not found");
-        if (expense.GroupId != groupId)
-            throw new BadRequestException("Wrong group");
-
-        await EnsureGroupMembersAsync(groupId, [share.UserId]);
-
-        var exists = await _db.ExpenseShares
-            .AnyAsync(s => s.ExpenseId == expenseId && s.UserId == share.UserId);
-        if (exists)
-            throw new BadRequestException($"User {share.UserId} is already a participant of expense {expenseId}");
-
-        var sumExisting = await _db.ExpenseShares
-            .Where(s => s.ExpenseId == expenseId && s.UserId != expense.PayerId)
-            .SumAsync(s => s.Amount);
-
-        var totalOthers = sumExisting + share.Amount;
-        if (totalOthers > expense.TotalAmount)
-            throw new BadRequestException(
-                $"Сумма долей ({totalOthers}) превышает общую сумму {expense.TotalAmount}");
-
-        _db.ExpenseShares.Add(new ExpenseShare
+        await _db.ExecuteInTransactionAsync(async () =>
         {
-            ExpenseId = expenseId,
-            UserId = share.UserId,
-            Amount = share.Amount
-        });
+            await LockExpenseAsync(expenseId);
 
-        var remainder = expense.TotalAmount - totalOthers;
-        var payerShare = await _db.ExpenseShares
-            .FirstOrDefaultAsync(s => s.ExpenseId == expenseId && s.UserId == expense.PayerId);
+            var expense = await _db.Expenses.FindAsync(expenseId)
+                          ?? throw new NotFoundException($"Expense {expenseId} not found");
+            if (expense.GroupId != groupId)
+                throw new BadRequestException("Wrong group");
 
-        if (payerShare == null)
-        {
+            await EnsureGroupMembersAsync(groupId, [share.UserId]);
+
+            var exists = await _db.ExpenseShares
+                .AnyAsync(s => s.ExpenseId == expenseId && s.UserId == share.UserId);
+            if (exists)
+                throw new BadRequestException($"User {share.UserId} is already a participant of expense {expenseId}");
+
+            var sumExisting = await _db.ExpenseShares
+                .Where(s => s.ExpenseId == expenseId && s.UserId != expense.PayerId)
+                .SumAsync(s => s.Amount);
+
+            var totalOthers = sumExisting + share.Amount;
+            if (totalOthers > expense.TotalAmount)
+                throw new BadRequestException(
+                    $"Сумма долей ({totalOthers}) превышает общую сумму {expense.TotalAmount}");
+
             _db.ExpenseShares.Add(new ExpenseShare
             {
                 ExpenseId = expenseId,
-                UserId = expense.PayerId,
-                Amount = remainder
+                UserId = share.UserId,
+                Amount = share.Amount
             });
-        }
-        else
-        {
-            payerShare.Amount = remainder;
-        }
 
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
+            var remainder = expense.TotalAmount - totalOthers;
+            var payerShare = await _db.ExpenseShares
+                .FirstOrDefaultAsync(s => s.ExpenseId == expenseId && s.UserId == expense.PayerId);
+
+            if (payerShare == null)
+            {
+                _db.ExpenseShares.Add(new ExpenseShare
+                {
+                    ExpenseId = expenseId,
+                    UserId = expense.PayerId,
+                    Amount = remainder
+                });
+            }
+            else
+            {
+                payerShare.Amount = remainder;
+            }
+
+            await _db.SaveChangesAsync();
+        });
     }
 
     public async Task UpdateExpenseParticipantAsync(Guid groupId, Guid expenseId,
@@ -336,121 +341,122 @@ public class ExpenseService : IExpenseService
     {
         EnsurePositiveAmount(shareDto.Amount, "Expense participant share");
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-        await LockExpenseAsync(expenseId);
-
-        var share = await _db.ExpenseShares
-                        .Include(x => x.Expense)
-                        .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == shareDto.UserId)
-                    ?? throw new NotFoundException($"Share for user {shareDto.UserId} not found");
-
-        if (share.Expense.GroupId != groupId)
-            throw new BadRequestException("Wrong group");
-
-        var expense = share.Expense;
-        if (share.UserId == expense.PayerId)
+        await _db.ExecuteInTransactionAsync(async () =>
         {
-            throw new BadRequestException("Payer share is calculated automatically and cannot be updated directly.");
-        }
+            await LockExpenseAsync(expenseId);
 
-        var paidAmount = await _db.Payments
-            .Where(payment => payment.ExpenseId == expenseId && payment.FromUserId == share.UserId)
-            .SumAsync(payment => payment.Amount);
-        if (paidAmount > shareDto.Amount)
-        {
-            throw new BadRequestException("Participant share cannot be less than payments already recorded for it.");
-        }
+            var share = await _db.ExpenseShares
+                            .Include(x => x.Expense)
+                            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == shareDto.UserId)
+                        ?? throw new NotFoundException($"Share for user {shareDto.UserId} not found");
 
-        var sumOthers = await _db.ExpenseShares
-            .Where(x => x.ExpenseId == expenseId && x.UserId != expense.PayerId)
-            .SumAsync(x => x.Amount);
+            if (share.Expense.GroupId != groupId)
+                throw new BadRequestException("Wrong group");
 
-        sumOthers = sumOthers - share.Amount + shareDto.Amount;
-        share.Amount = shareDto.Amount;
-
-        if (sumOthers > expense.TotalAmount)
-            throw new BadRequestException(
-                $"Сумма долей ({sumOthers}) превышает общую сумму {expense.TotalAmount}");
-
-        var remainder = expense.TotalAmount - sumOthers;
-        var payerShare = await _db.ExpenseShares
-            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.PayerId);
-
-        if (payerShare == null)
-        {
-            _db.ExpenseShares.Add(new ExpenseShare
+            var expense = share.Expense;
+            if (share.UserId == expense.PayerId)
             {
-                ExpenseId = expenseId,
-                UserId = expense.PayerId,
-                Amount = remainder
-            });
-        }
-        else
-        {
-            payerShare.Amount = remainder;
-        }
+                throw new BadRequestException("Payer share is calculated automatically and cannot be updated directly.");
+            }
 
+            var paidAmount = await _db.Payments
+                .Where(payment => payment.ExpenseId == expenseId && payment.FromUserId == share.UserId)
+                .SumAsync(payment => payment.Amount);
+            if (paidAmount > shareDto.Amount)
+            {
+                throw new BadRequestException("Participant share cannot be less than payments already recorded for it.");
+            }
 
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
+            var sumOthers = await _db.ExpenseShares
+                .Where(x => x.ExpenseId == expenseId && x.UserId != expense.PayerId)
+                .SumAsync(x => x.Amount);
+
+            sumOthers = sumOthers - share.Amount + shareDto.Amount;
+            share.Amount = shareDto.Amount;
+
+            if (sumOthers > expense.TotalAmount)
+                throw new BadRequestException(
+                    $"Сумма долей ({sumOthers}) превышает общую сумму {expense.TotalAmount}");
+
+            var remainder = expense.TotalAmount - sumOthers;
+            var payerShare = await _db.ExpenseShares
+                .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.PayerId);
+
+            if (payerShare == null)
+            {
+                _db.ExpenseShares.Add(new ExpenseShare
+                {
+                    ExpenseId = expenseId,
+                    UserId = expense.PayerId,
+                    Amount = remainder
+                });
+            }
+            else
+            {
+                payerShare.Amount = remainder;
+            }
+
+            await _db.SaveChangesAsync();
+        });
     }
 
     public async Task RemoveExpenseParticipantAsync(Guid groupId, Guid expenseId, Guid userId)
     {
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-        await LockExpenseAsync(expenseId);
-        var share = await _db.ExpenseShares
-            .Include(x => x.Expense)
-            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == userId);
-
-        if (share == null)
-            return;
-
-        if (share.Expense.GroupId != groupId)
+        await _db.ExecuteInTransactionAsync(async () =>
         {
-            throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
-        }
+            await LockExpenseAsync(expenseId);
+            var share = await _db.ExpenseShares
+                .Include(x => x.Expense)
+                .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == userId);
 
-        if (share.UserId == share.Expense.PayerId)
-        {
-            throw new BadRequestException("Payer share cannot be removed from an expense.");
-        }
+            if (share == null)
+                return;
 
-        var paidAmount = await _db.Payments
-            .Where(payment => payment.ExpenseId == expenseId && payment.FromUserId == userId)
-            .SumAsync(payment => payment.Amount);
-        if (paidAmount > 0)
-        {
-            throw new BadRequestException("Participant with recorded payments cannot be removed from an expense.");
-        }
-
-        _db.ExpenseShares.Remove(share);
-
-        var expense = share.Expense;
-        var sumOthers = await _db.ExpenseShares
-            .Where(x => x.ExpenseId == expenseId && x.UserId != expense.PayerId)
-            .SumAsync(x => x.Amount);
-
-        var remainder = expense.TotalAmount - sumOthers;
-        var payerShare = await _db.ExpenseShares
-            .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.PayerId);
-
-        if (payerShare == null)
-        {
-            _db.ExpenseShares.Add(new ExpenseShare
+            if (share.Expense.GroupId != groupId)
             {
-                ExpenseId = expenseId,
-                UserId = expense.PayerId,
-                Amount = remainder
-            });
-        }
-        else
-        {
-            payerShare.Amount = remainder;
-        }
+                throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
+            }
 
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
+            if (share.UserId == share.Expense.PayerId)
+            {
+                throw new BadRequestException("Payer share cannot be removed from an expense.");
+            }
+
+            var paidAmount = await _db.Payments
+                .Where(payment => payment.ExpenseId == expenseId && payment.FromUserId == userId)
+                .SumAsync(payment => payment.Amount);
+            if (paidAmount > 0)
+            {
+                throw new BadRequestException("Participant with recorded payments cannot be removed from an expense.");
+            }
+
+            _db.ExpenseShares.Remove(share);
+
+            var expense = share.Expense;
+            var sumOthers = await _db.ExpenseShares
+                .Where(x => x.ExpenseId == expenseId && x.UserId != expense.PayerId)
+                .SumAsync(x => x.Amount);
+
+            var remainder = expense.TotalAmount - sumOthers;
+            var payerShare = await _db.ExpenseShares
+                .FirstOrDefaultAsync(x => x.ExpenseId == expenseId && x.UserId == expense.PayerId);
+
+            if (payerShare == null)
+            {
+                _db.ExpenseShares.Add(new ExpenseShare
+                {
+                    ExpenseId = expenseId,
+                    UserId = expense.PayerId,
+                    Amount = remainder
+                });
+            }
+            else
+            {
+                payerShare.Amount = remainder;
+            }
+
+            await _db.SaveChangesAsync();
+        });
     }
 
     private async Task EnsureGroupMembersAsync(Guid groupId, IEnumerable<Guid> userIds)
