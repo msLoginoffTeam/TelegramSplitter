@@ -11,6 +11,11 @@
 
 ## Канонические репозитории
 
+## Рабочий Git-процесс
+
+- Codex не выполняет `git commit` и `git push` без отдельного явного разрешения пользователя.
+- После правок Codex оставляет рабочий diff, проверяет сборку/форматирование и предлагает сообщение для коммита; пользователь сначала проверяет изменения и коммитит их самостоятельно.
+
 - Backend: <https://github.com/msLoginoffTeam/TelegramSplitter>
   - активная локальная копия: `/Users/max/RiderProjects/BudgetSplitterWebApi`;
   - `main`: `c786244` (`cash adjustments and validation`), опубликован в GitHub на 2026-08-03;
