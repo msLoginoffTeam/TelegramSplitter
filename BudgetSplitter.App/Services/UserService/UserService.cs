@@ -1,4 +1,3 @@
-using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using BudgetSplitter.Common.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -25,16 +24,5 @@ public class UserService : IUserService
             DisplayName = user.DisplayName,
             Username = user.Username
         };
-    }
-
-    public async Task UpdateUserAsync(Guid userId, UpdateUserRequestDto dto)
-    {
-        var user = await _db.Users.FindAsync(userId)
-                   ?? throw new NotFoundException($"User {userId} not found");
-
-        if (!string.IsNullOrWhiteSpace(dto.DisplayName))
-            user.DisplayName = dto.DisplayName;
-
-        await _db.SaveChangesAsync();
     }
 }

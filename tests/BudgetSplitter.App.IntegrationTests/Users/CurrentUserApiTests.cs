@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using BudgetSplitter.App.Authentication;
 using BudgetSplitter.App.IntegrationTests.Infrastructure;
-using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using BudgetSplitter.Tests.Shared;
 
@@ -25,42 +24,16 @@ public sealed class CurrentUserApiTests(PostgreSqlFixture database) : Integratio
     }
 
     [Fact]
-    public async Task UpdateMe_UpdatesAuthenticatedUsersProfile()
+    public async Task GetMe_UsesProfileFromTelegramInitData()
     {
         const long telegramId = 201_002;
 
-        using var updateResponse = await SendAuthenticatedAsync(
-            HttpMethod.Put,
-            "/api/users/me",
-            telegramId,
-            JsonContent.Create(new UpdateUserRequestDto { DisplayName = "Max" }));
-        using var getResponse = await SendAuthenticatedAsync(HttpMethod.Get, "/api/users/me", telegramId);
-        var profile = await getResponse.Content.ReadFromJsonAsync<UserResponseDto>();
+        using var response = await SendAuthenticatedAsync(HttpMethod.Get, "/api/users/me", telegramId);
+        var profile = await response.Content.ReadFromJsonAsync<UserResponseDto>();
 
-        Assert.Equal(HttpStatusCode.NoContent, updateResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(profile);
-        Assert.Equal("Max", profile.DisplayName);
-    }
-
-    [Fact]
-    public async Task UpdateMe_AllowsDifferentTelegramUsersToShareDisplayName()
-    {
-        const string displayName = "Alex";
-
-        using var firstResponse = await SendAuthenticatedAsync(
-            HttpMethod.Put,
-            "/api/users/me",
-            201_004,
-            JsonContent.Create(new UpdateUserRequestDto { DisplayName = displayName }));
-        using var secondResponse = await SendAuthenticatedAsync(
-            HttpMethod.Put,
-            "/api/users/me",
-            201_005,
-            JsonContent.Create(new UpdateUserRequestDto { DisplayName = displayName }));
-
-        Assert.Equal(HttpStatusCode.NoContent, firstResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, secondResponse.StatusCode);
+        Assert.Equal("Test", profile.DisplayName);
     }
 
     [Theory]

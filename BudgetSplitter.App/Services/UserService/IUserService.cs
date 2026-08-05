@@ -1,11 +1,8 @@
-using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 
-namespace BudgetSplitter.App.Services.UserService
-{
+namespace BudgetSplitter.App.Services.UserService;
+
 public interface IUserService
 {
     Task<UserResponseDto> GetProfileAsync(Guid userId);
-    Task UpdateUserAsync(Guid userId, UpdateUserRequestDto dto);
-}
 }

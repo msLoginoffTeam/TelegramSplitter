@@ -64,7 +64,7 @@ Telegram Mini App для совместных расходов: группы, т
 - Group authorization реализуется через membership и точечные permissions, хранимые в `GroupMemberPermissions`.
 - `RequireGroupPermission` на action требует все перечисленные права (AND) и намеренно не допускает повторения на одном action. Если когда-нибудь понадобится статическое OR, будет введён отдельный явно названный `RequireAnyGroupPermission`; сейчас такого кейса нет. Проверки `own/any` для уже существующей траты или платежа остаются в `IGroupAuthorizationService`, так как требуют загрузить автора записи.
 - В ответе group details `Members` содержит пользователя, его permissions, вычисленную UI-роль и флаг owner. Роли — только presets для UI; источником истины остаются permissions.
-- Users API предназначен только для self-service: `GET /api/users/me` и `PUT /api/users/me`. Пользователь создаётся при первой успешной Telegram authentication; публичного поиска, списка и ручного создания пользователей нет.
+- Users API предназначен только для чтения собственного профиля: `GET /api/users/me`. Пользователь создаётся при первой успешной Telegram authentication; `DisplayName` и `Username` являются данными Telegram и не редактируются через API. Публичного поиска, списка и ручного создания пользователей нет.
 - `User.DisplayName` и `User.Username` берутся из подписанного Telegram `initData`, сохраняются в БД и обновляются только при изменении профиля. Для этого не выполняется запрос к Telegram на каждый API-вызов; имя бота для invite-ссылок при необходимости один раз получает `getMe` и кэширует в памяти.
 
 ## Принятая структура репозиториев
