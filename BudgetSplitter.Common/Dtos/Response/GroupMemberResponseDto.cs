@@ -7,6 +7,7 @@ public class GroupMemberResponseDto
     public Guid UserId { get; set; }
     public long TelegramId { get; set; }
     public string? DisplayName { get; set; }
+    public string? Username { get; set; }
     public bool IsOwner { get; set; }
     public GroupRole Role { get; set; }
     public IReadOnlyCollection<GroupPermission> Permissions { get; set; } = Array.Empty<GroupPermission>();

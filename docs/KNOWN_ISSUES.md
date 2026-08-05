@@ -1,6 +1,6 @@
 # Telegram Splitter — журнал проблем и рисков
 
-Обновлено: 2026-08-04. Статусы: `open`, `planned`, `fixed`, `won't fix`.
+Обновлено: 2026-08-06. Статусы: `open`, `planned`, `fixed`, `won't fix`.
 
 | ID | Приоритет | Статус | Область | Проблема / риск |
 |---|---|---|---|---|
@@ -34,6 +34,8 @@
 | TS-028 | P2 | fixed | Dependencies | Миграция на .NET 10 выявила восемь CVE в транзитивном `System.Security.Cryptography.Xml` 9.0.0. Источником были лишние EF design-time пакеты в persistence-проекте; они удалены, а `dotnet-ef` закреплён в tool manifest. |
 | TS-029 | P1 | fixed | CI testing | Integration tests в GitHub Actions не запускались без `appsettings.Local.json`, а .NET 10 оставлял исходную EF registration после частичной замены. Добавлены versioned `appsettings.Tests.json`, environment `Tests` и удаление `IDbContextOptionsConfiguration<AppDbContext>` перед подключением Testcontainers PostgreSQL. |
 | TS-030 | P0 | fixed | API contract | `POST /api/groups` сохранял группу, но отвечал `200 OK` при OpenAPI-контракте на `201 Created`; generated frontend client ошибочно считал успешное создание неуспешным. Endpoint возвращает `CreatedAtAction`, поведение покрыто integration test. |
+| TS-031 | P1 | fixed | Invites | Добавлены group invite-ссылки с хешированием токена, сроком действия и idempotent accept; новый участник получает базовые member permissions. |
+| TS-032 | P1 | open | Telegram chat sync | Bot API не умеет перечислять всех исторических участников чата. Автосоздание группы при добавлении бота потребует ограниченного набора участников (админы/события) либо отдельного MTProto-решения. |
 
 ## Открытые продуктовые решения
 

@@ -6,4 +6,6 @@ public static class TelegramAuthDefaults
     public const string InitDataHeaderName = "X-Telegram-Init-Data";
     public const string DevelopmentUserIdHeaderName = "X-Telegram-Dev-User-Id";
     public const string TelegramIdClaimType = "telegram_id";
+    public const string TelegramDisplayNameClaimType = "telegram_display_name";
+    public const string TelegramUsernameClaimType = "telegram_username";
 }

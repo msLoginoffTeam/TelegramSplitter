@@ -10,6 +10,7 @@ public class ExpenseResponseDto
     public decimal TotalAmount { get; set; }
     public Guid PayerId { get; set; }
     public string? PayerName { get; set; }
+    public string? PayerUsername { get; set; }
     public Guid CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsDraft { get; set; }

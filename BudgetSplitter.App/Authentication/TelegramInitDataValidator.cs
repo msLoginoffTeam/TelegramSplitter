@@ -101,6 +101,38 @@ public sealed class TelegramInitDataValidator
         return true;
     }
 
+    public bool TryValidateIdentity(
+        string initData,
+        TelegramAuthOptions options,
+        out TelegramUserIdentity identity,
+        out string failureReason)
+    {
+        identity = default!;
+        if (!TryValidate(initData, options, out var telegramUserId, out failureReason))
+        {
+            return false;
+        }
+
+        var parsed = QueryHelpers.ParseQuery(initData);
+        var userJson = parsed["user"].Single();
+        using var document = JsonDocument.Parse(userJson!);
+        var user = document.RootElement;
+        var firstName = GetOptionalString(user, "first_name");
+        var lastName = GetOptionalString(user, "last_name");
+        var displayName = string.Join(" ", new[] { firstName, lastName }.Where(value => !string.IsNullOrWhiteSpace(value))).Trim();
+
+        identity = new TelegramUserIdentity(
+            telegramUserId,
+            string.IsNullOrWhiteSpace(displayName) ? null : displayName,
+            GetOptionalString(user, "username"));
+        return true;
+    }
+
+    private static string? GetOptionalString(JsonElement user, string propertyName)
+        => user.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
     private static bool TryDecodeHex(string? value, out byte[] bytes)
     {
         try
@@ -133,3 +165,5 @@ public sealed class TelegramInitDataValidator
         }
     }
 }
+
+public sealed record TelegramUserIdentity(long TelegramId, string? DisplayName, string? Username);

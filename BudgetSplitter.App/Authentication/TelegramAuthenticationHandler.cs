@@ -45,8 +45,8 @@ public sealed class TelegramAuthenticationHandler : AuthenticationHandler<Authen
         }
 
         return Task.FromResult(
-            _validator.TryValidate(initDataHeader!, _authOptions.Value, out var telegramUserId, out var failureReason)
-                ? Success(telegramUserId)
+            _validator.TryValidateIdentity(initDataHeader!, _authOptions.Value, out var identity, out var failureReason)
+                ? Success(identity)
                 : AuthenticateResult.Fail(failureReason));
     }
 
@@ -58,14 +58,23 @@ public sealed class TelegramAuthenticationHandler : AuthenticationHandler<Authen
     }
 
     private AuthenticateResult Success(long telegramUserId)
+        => Success(new TelegramUserIdentity(telegramUserId, null, null), includeProfileClaims: false);
+
+    private AuthenticateResult Success(TelegramUserIdentity profile, bool includeProfileClaims = true)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, telegramUserId.ToString()),
-            new Claim(TelegramAuthDefaults.TelegramIdClaimType, telegramUserId.ToString())
+            new Claim(ClaimTypes.NameIdentifier, profile.TelegramId.ToString()),
+            new Claim(TelegramAuthDefaults.TelegramIdClaimType, profile.TelegramId.ToString())
         };
-        var identity = new ClaimsIdentity(claims, TelegramAuthDefaults.Scheme);
-        var principal = new ClaimsPrincipal(identity);
+        if (includeProfileClaims)
+        {
+            claims.Add(new Claim(TelegramAuthDefaults.TelegramDisplayNameClaimType, profile.DisplayName ?? string.Empty));
+            claims.Add(new Claim(TelegramAuthDefaults.TelegramUsernameClaimType, profile.Username ?? string.Empty));
+        }
+
+        var claimsIdentity = new ClaimsIdentity(claims, TelegramAuthDefaults.Scheme);
+        var principal = new ClaimsPrincipal(claimsIdentity);
         var ticket = new AuthenticationTicket(principal, TelegramAuthDefaults.Scheme);
         return AuthenticateResult.Success(ticket);
     }

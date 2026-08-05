@@ -6,4 +6,5 @@ public class UserBalanceResponseDto
     public decimal Balance { get; set; }
     
     public string? DisplayName { get; set; }
+    public string? Username { get; set; }
 }

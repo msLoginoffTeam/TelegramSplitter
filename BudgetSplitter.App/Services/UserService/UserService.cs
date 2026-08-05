@@ -22,7 +22,8 @@ public class UserService : IUserService
         {
             Id = user.Id,
             TelegramId = user.TelegramId,
-            DisplayName = user.DisplayName
+            DisplayName = user.DisplayName,
+            Username = user.Username
         };
     }
 

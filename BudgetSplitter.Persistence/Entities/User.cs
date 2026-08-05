@@ -13,6 +13,9 @@ public class User
     [MaxLength(200)]
     public string? DisplayName { get; set; }
 
+    [MaxLength(100)]
+    public string? Username { get; set; }
+
     public ICollection<UserGroup> UserGroups { get; set; } = new List<UserGroup>();
     public ICollection<Group> GroupsCreated { get; set; } = new List<Group>();
     public ICollection<Group> GroupsOwned { get; set; } = new List<Group>();

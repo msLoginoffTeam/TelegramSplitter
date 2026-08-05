@@ -491,6 +491,7 @@ public class ExpenseService : IExpenseService
             TotalAmount = expense.TotalAmount,
             PayerId = expense.PayerId,
             PayerName = expense.Payer.DisplayName,
+            PayerUsername = expense.Payer.Username,
             CreatedByUserId = expense.CreatedByUserId,
             CreatedAt = expense.CreatedAt,
             IsDraft = expense.IsDraft,
@@ -498,6 +499,7 @@ public class ExpenseService : IExpenseService
             {
                 UserId = share.UserId,
                 UserName = share.User.DisplayName,
+                Username = share.User.Username,
                 Amount = share.Amount,
                 IsPaid = ExpenseShareSettlement.IsPaid(
                     share.UserId,

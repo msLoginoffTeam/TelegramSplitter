@@ -17,11 +17,39 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor,
         }
 
         var user = await db.Users.SingleOrDefaultAsync(user => user.TelegramId == telegramId, cancellationToken);
-        if (user is not null) return user;
+        var principal = httpContextAccessor.HttpContext?.User;
+        var hasDisplayName = principal?.Claims.Any(claim => claim.Type == TelegramAuthDefaults.TelegramDisplayNameClaimType) == true;
+        var hasUsername = principal?.Claims.Any(claim => claim.Type == TelegramAuthDefaults.TelegramUsernameClaimType) == true;
+        var displayName = principal?.FindFirstValue(TelegramAuthDefaults.TelegramDisplayNameClaimType);
+        var username = principal?.FindFirstValue(TelegramAuthDefaults.TelegramUsernameClaimType);
+        if (user is not null)
+        {
+            var changed = false;
+            if (hasDisplayName && user.DisplayName != NullIfBlank(displayName))
+            {
+                user.DisplayName = NullIfBlank(displayName);
+                changed = true;
+            }
+            if (hasUsername && user.Username != NullIfBlank(username))
+            {
+                user.Username = NullIfBlank(username);
+                changed = true;
+            }
+            if (changed) await db.SaveChangesAsync(cancellationToken);
+            return user;
+        }
 
-        user = new User { TelegramId = telegramId };
+        user = new User
+        {
+            TelegramId = telegramId,
+            DisplayName = NullIfBlank(displayName),
+            Username = NullIfBlank(username)
+        };
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
         return user;
     }
+
+    private static string? NullIfBlank(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

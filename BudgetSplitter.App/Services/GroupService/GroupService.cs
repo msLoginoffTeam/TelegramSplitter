@@ -83,6 +83,7 @@ public class GroupService : IGroupService
                     UserId = ug.User.Id,
                     TelegramId = ug.User.TelegramId,
                     DisplayName = ug.User.DisplayName,
+                    Username = ug.User.Username,
                     IsOwner = ug.UserId == group.OwnerId,
                     Role = GroupRolePresets.ResolveRole(
                         ug.Permissions.Select(permission => permission.Permission).ToHashSet(),

@@ -24,8 +24,10 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 ExpenseId = p.ExpenseId,
                 FromUserId = p.FromUserId,
                 FromUserName = p.FromUser.DisplayName,
+                FromUsername = p.FromUser.Username,
                 ToUserId = p.ToUserId,
                 ToUserName = p.ToUser.DisplayName,
+                ToUsername = p.ToUser.Username,
                 CreatedByUserId = p.CreatedByUserId,
                 Amount = p.Amount,
                 Timestamp = p.Timestamp
