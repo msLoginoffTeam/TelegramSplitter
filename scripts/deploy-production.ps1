@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 foreach ($variableName in @("POSTGRES_PASSWORD", "TELEGRAM_BOT_TOKEN")) {
     if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($variableName))) {
