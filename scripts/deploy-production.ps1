@@ -6,6 +6,20 @@ foreach ($variableName in @("POSTGRES_PASSWORD", "TELEGRAM_BOT_TOKEN")) {
     }
 }
 
+$dockerReadyBy = (Get-Date).AddMinutes(5)
+do {
+    docker info *> $null
+    if ($LASTEXITCODE -eq 0) {
+        break
+    }
+
+    Start-Sleep -Seconds 5
+} while ((Get-Date) -lt $dockerReadyBy)
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Docker daemon did not become ready within five minutes."
+}
+
 docker network inspect splitter-internal *> $null
 if ($LASTEXITCODE -ne 0) {
     docker network create splitter-internal
