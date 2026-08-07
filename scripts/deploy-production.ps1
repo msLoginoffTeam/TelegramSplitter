@@ -8,7 +8,7 @@ foreach ($variableName in @("POSTGRES_PASSWORD", "TELEGRAM_BOT_TOKEN")) {
 
 $dockerReadyBy = (Get-Date).AddMinutes(5)
 do {
-    $null = docker info 2>$null
+    & $env:ComSpec /d /c 'docker info >NUL 2>NUL'
     if ($LASTEXITCODE -eq 0) {
         break
     }
