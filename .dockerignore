@@ -1,5 +1,6 @@
 ﻿**/.dockerignore
 **/.env
+**/.env.*
 **/appsettings.Local.json
 **/appsettings.Development.json
 **/.git

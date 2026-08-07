@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: splitter-backend-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -18,3 +22,17 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore BudgetSplitterWebApi.sln
       - run: dotnet test BudgetSplitterWebApi.sln --configuration Release --no-restore
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, windows, splitter-prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy exact main commit
+        shell: pwsh
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: ./scripts/deploy-production.ps1

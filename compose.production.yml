@@ -1,0 +1,48 @@
+name: telegram-splitter-backend
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: splitter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD GitHub Actions secret}
+      POSTGRES_DB: ${POSTGRES_DB:-splitterdb}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - telegram-splitter-postgres-data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: BudgetSplitter.App/Dockerfile
+      args:
+        BUILD_CONFIGURATION: Release
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      TelegramAuth__BotToken: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN GitHub Actions secret}
+      TelegramAuth__MaxAuthAgeSeconds: ${TELEGRAM_AUTH_MAX_AGE_SECONDS:-86400}
+      ConnectionStrings__DefaultConnection: >-
+        Host=db;Port=5432;Database=${POSTGRES_DB:-splitterdb};Username=splitter;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD GitHub Actions secret}
+    ports:
+      - "127.0.0.1:${API_PORT:-5050}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - default
+      - splitter-internal
+
+volumes:
+  telegram-splitter-postgres-data:
+
+networks:
+  splitter-internal:
+    external: true
+    name: splitter-internal

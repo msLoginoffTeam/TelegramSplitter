@@ -80,6 +80,8 @@ Backend, Mini App и Telegram adapter развиваются в отдельны
 
 Frontend не пишет API-контракты вручную: OpenAPI snapshot и TypeScript/React Query client генерируются скриптом. Backend `docker-compose.yml` поднимает только db+api; frontend имеет независимый Compose и настраивает адрес API через `API_UPSTREAM`. Подробности: `docs/LOCAL_DEVELOPMENT.md`.
 
+Для production есть отдельный `compose.production.yml`: API и frontend соединяются внешней Docker-сетью `splitter-internal`, PostgreSQL не публикуется, frontend получает публичный HTTPS только через Tailscale Funnel. Push в `main` после тестов разворачивается self-hosted GitHub Actions runner с label `splitter-prod`. Полная инструкция: `docs/DEPLOYMENT_WINDOWS.md`.
+
 ## Направление реализации
 
 1. Изменения backend и frontend сейчас ведутся прямо в `main`.

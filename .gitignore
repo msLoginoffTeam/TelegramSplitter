@@ -22,7 +22,7 @@ BudgetSplitter.App/Properties/launchSettings.json
 
 # ===== Secrets / Env =====
 .env
-.env.local
+.env.*
 secrets.json
 
 # ===== OS / Editor =====
