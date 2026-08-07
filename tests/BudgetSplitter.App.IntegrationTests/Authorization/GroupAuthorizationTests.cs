@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 using BudgetSplitter.App.Authentication;
 using BudgetSplitter.App.IntegrationTests.Infrastructure;
 using BudgetSplitter.Common.Authorization;
@@ -185,6 +187,51 @@ public sealed class GroupAuthorizationTests(PostgreSqlFixture database) : Integr
         Assert.Empty(await db.GroupMemberPermissions
             .Where(permission => permission.GroupId == data.GroupId && permission.UserId == memberId)
             .ToListAsync());
+    }
+
+    [Fact]
+    public async Task AcceptInvite_ReaddsRemovedMemberWithDefaultPermissions()
+    {
+        var data = await SeedGroupAsync();
+        var memberId = data.UserIds[TelegramIds.Member];
+        const string token = "rejoin-member-invite";
+
+        await using (var db = CreateDbContext())
+        {
+            db.GroupInvites.Add(new GroupInvite
+            {
+                GroupId = data.GroupId,
+                CreatedByUserId = data.UserIds[TelegramIds.Owner],
+                TokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))),
+                CreatedAtUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddHours(1)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using (var removeResponse = await SendAuthenticatedAsync(
+                   HttpMethod.Delete,
+                   $"/api/groups/{data.GroupId}/users/{memberId}",
+                   TelegramIds.Owner))
+        {
+            Assert.Equal(HttpStatusCode.OK, removeResponse.StatusCode);
+        }
+
+        using var acceptResponse = await SendAuthenticatedAsync(
+            HttpMethod.Post,
+            "/api/group-invites/accept",
+            TelegramIds.Member,
+            JsonContent.Create(new AcceptGroupInviteRequestDto { Token = token }));
+
+        Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
+        await using var verificationDb = CreateDbContext();
+        Assert.True(await verificationDb.UserGroups.AnyAsync(member =>
+            member.GroupId == data.GroupId && member.UserId == memberId));
+        var permissions = await verificationDb.GroupMemberPermissions
+            .Where(permission => permission.GroupId == data.GroupId && permission.UserId == memberId)
+            .Select(permission => permission.Permission)
+            .ToHashSetAsync();
+        Assert.True(permissions.SetEquals(GroupRolePresets.GetPermissions(GroupRole.Member)));
     }
 
     [Fact]
