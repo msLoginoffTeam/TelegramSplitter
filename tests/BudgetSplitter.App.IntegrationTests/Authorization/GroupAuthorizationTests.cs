@@ -168,6 +168,26 @@ public sealed class GroupAuthorizationTests(PostgreSqlFixture database) : Integr
     }
 
     [Fact]
+    public async Task RemoveUser_RemovesMemberFromGroup()
+    {
+        var data = await SeedGroupAsync();
+        var memberId = data.UserIds[TelegramIds.Member];
+
+        using var response = await SendAuthenticatedAsync(
+            HttpMethod.Delete,
+            $"/api/groups/{data.GroupId}/users/{memberId}",
+            TelegramIds.Owner);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var db = CreateDbContext();
+        Assert.False(await db.UserGroups.AnyAsync(member =>
+            member.GroupId == data.GroupId && member.UserId == memberId));
+        Assert.Empty(await db.GroupMemberPermissions
+            .Where(permission => permission.GroupId == data.GroupId && permission.UserId == memberId)
+            .ToListAsync());
+    }
+
+    [Fact]
     public async Task UpdateMemberPermissions_CannotGrantOwnerOnlyPermission()
     {
         var data = await SeedGroupAsync();
@@ -188,6 +208,27 @@ public sealed class GroupAuthorizationTests(PostgreSqlFixture database) : Integr
             JsonContent.Create(requestDto));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateMemberPermissions_AppliesPresetRole()
+    {
+        var data = await SeedGroupAsync();
+        var memberId = data.UserIds[TelegramIds.Member];
+
+        using var response = await SendAuthenticatedAsync(
+            HttpMethod.Put,
+            $"/api/groups/{data.GroupId}/users/{memberId}/permissions",
+            TelegramIds.Owner,
+            JsonContent.Create(new UpdateGroupMemberPermissionsRequestDto { Role = GroupRole.Viewer }));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await using var db = CreateDbContext();
+        var permissions = await db.GroupMemberPermissions
+            .Where(permission => permission.GroupId == data.GroupId && permission.UserId == memberId)
+            .Select(permission => permission.Permission)
+            .ToHashSetAsync();
+        Assert.True(permissions.SetEquals(GroupRolePresets.GetPermissions(GroupRole.Viewer)));
     }
 
     private Task<SeededGroup> SeedGroupAsync(long seedOffset = 0) => GroupTestData.SeedGroupAsync(Database, seedOffset);
