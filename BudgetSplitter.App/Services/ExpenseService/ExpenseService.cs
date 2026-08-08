@@ -218,23 +218,30 @@ public class ExpenseService : IExpenseService
             expense.TotalAmount = dto.TotalAmount;
             expense.PayerId = dto.PayerId;
 
-            _db.ExpenseShares.RemoveRange(expense.Shares);
-            foreach (var share in dto.Shares)
+            var targetAmountsByUserId = dto.Shares.ToDictionary(share => share.UserId, share => share.Amount);
+            targetAmountsByUserId[dto.PayerId] = expense.TotalAmount - sharesTotal;
+            var existingSharesByUserId = expense.Shares.ToDictionary(share => share.UserId);
+
+            foreach (var existingShare in expense.Shares.Where(share => !targetAmountsByUserId.ContainsKey(share.UserId)))
             {
+                _db.ExpenseShares.Remove(existingShare);
+            }
+
+            foreach (var (userId, amount) in targetAmountsByUserId)
+            {
+                if (existingSharesByUserId.TryGetValue(userId, out var existingShare))
+                {
+                    existingShare.Amount = amount;
+                    continue;
+                }
+
                 _db.ExpenseShares.Add(new ExpenseShare
                 {
                     ExpenseId = expense.Id,
-                    UserId = share.UserId,
-                    Amount = share.Amount
+                    UserId = userId,
+                    Amount = amount
                 });
             }
-
-            _db.ExpenseShares.Add(new ExpenseShare
-            {
-                ExpenseId = expense.Id,
-                UserId = expense.PayerId,
-                Amount = expense.TotalAmount - sharesTotal
-            });
 
             await _db.SaveChangesAsync();
         });
