@@ -18,5 +18,9 @@ public class ExpenseShare
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal Amount { get; set; }
-    
+
+    /// <summary>
+    /// A visual settlement override. It never participates in group balance calculations.
+    /// </summary>
+    public bool IsManuallySettled { get; set; }
 }

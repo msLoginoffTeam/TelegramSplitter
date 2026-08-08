@@ -9,7 +9,11 @@ public sealed class ExpenseShareSettlementTests
     {
         var payerId = Guid.NewGuid();
 
-        var isPaid = ExpenseShareSettlement.IsPaid(payerId, payerId, shareAmount: 100, paidAmount: 0);
+        var isPaid = ExpenseShareSettlement.IsPaidByPayments(
+            payerId,
+            payerId,
+            shareAmount: 100,
+            paidAmount: 0);
 
         Assert.True(isPaid);
     }
@@ -21,8 +25,25 @@ public sealed class ExpenseShareSettlementTests
     [InlineData(30, 31, true)]
     public void IsPaid_NonPayerDependsOnRecordedPayments(decimal shareAmount, decimal paidAmount, bool expected)
     {
-        var isPaid = ExpenseShareSettlement.IsPaid(Guid.NewGuid(), Guid.NewGuid(), shareAmount, paidAmount);
+        var isPaid = ExpenseShareSettlement.IsPaidByPayments(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            shareAmount,
+            paidAmount);
 
         Assert.Equal(expected, isPaid);
+    }
+
+    [Fact]
+    public void IsSettled_ManualSettlementClosesAnUnpaidShare()
+    {
+        var isSettled = ExpenseShareSettlement.IsSettled(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            shareAmount: 100,
+            paidAmount: 25,
+            isManuallySettled: true);
+
+        Assert.True(isSettled);
     }
 }

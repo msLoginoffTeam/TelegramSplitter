@@ -151,7 +151,7 @@ namespace BudgetSplitter.App.Controllers
             await _expenseService.DeleteExpenseAsync(groupId, expenseId);
             return Ok();
         }
-        
+
         /// <summary>
         /// Retrieves all participants and their shares for an expense.
         /// </summary>
@@ -217,6 +217,31 @@ namespace BudgetSplitter.App.Controllers
             await _groupAuthorization.EnsureExpensePermissionAsync(groupId, expenseId, GroupPermission.UpdateOwnExpense, GroupPermission.UpdateAnyExpense);
             await _expenseService.RemoveExpenseParticipantAsync(groupId, expenseId, userId);
             return Ok();
+        }
+
+        /// <summary>
+        /// Marks an unpaid participant share as settled manually, or returns it to unpaid state.
+        /// The manual status never changes group balances or suggested transfers.
+        /// </summary>
+        [HttpPut("{expenseId:guid}/participants/{userId:guid}/settlement")]
+        public async Task<ActionResult<ExpenseResponseDto>> UpdateExpenseShareSettlement(
+            Guid groupId,
+            Guid expenseId,
+            Guid userId,
+            [FromBody] UpdateExpenseShareSettlementRequestDto dto)
+        {
+            await _groupAuthorization.EnsureExpensePermissionAsync(
+                groupId,
+                expenseId,
+                GroupPermission.UpdateOwnExpense,
+                GroupPermission.UpdateAnyExpense);
+
+            var response = await _expenseService.UpdateExpenseShareSettlementAsync(
+                groupId,
+                expenseId,
+                userId,
+                dto);
+            return Ok(response);
         }
 
         // POST api/groups/{groupId}/expenses/{expenseId}/confirm

@@ -7,4 +7,6 @@ public class ExpenseShareResponseDto
     public string? Username { get; set; }
     public decimal Amount { get; set; }
     public bool IsPaid { get; set; }
+    public bool IsPaidByPayments { get; set; }
+    public bool IsManuallySettled { get; set; }
 }

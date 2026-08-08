@@ -245,6 +245,84 @@ public sealed class ExpenseAndPaymentTests(PostgreSqlFixture database) : Integra
         Assert.False(await GetShareIsPaidAsync(data.GroupId, expenseId, memberId));
     }
 
+    [Fact]
+    public async Task ManualSettlement_ChangesOnlyShareStatusAndCanBeReverted()
+    {
+        var data = await GroupTestData.SeedGroupAsync(Database);
+        var ownerId = data.UserIds[GroupTestTelegramIds.Owner];
+        var memberId = data.UserIds[GroupTestTelegramIds.Member];
+        var expenseId = await GroupTestData.SeedExpenseAsync(
+            Database,
+            data.GroupId,
+            ownerId,
+            ownerId,
+            [(ownerId, 70), (memberId, 30)]);
+        var balancesBefore = await GetBalancesAsync(data.GroupId);
+
+        using var settleResponse = await SendAuthenticatedAsync(
+            HttpMethod.Put,
+            $"/api/groups/{data.GroupId}/expenses/{expenseId}/participants/{memberId}/settlement",
+            GroupTestTelegramIds.Owner,
+            JsonContent.Create(new UpdateExpenseShareSettlementRequestDto { IsManuallySettled = true }));
+        var settledExpense = await settleResponse.Content.ReadFromJsonAsync<ExpenseResponseDto>();
+
+        Assert.Equal(HttpStatusCode.OK, settleResponse.StatusCode);
+        Assert.NotNull(settledExpense);
+        var settledShare = settledExpense.Shares.Single(share => share.UserId == memberId);
+        Assert.True(settledShare.IsPaid);
+        Assert.False(settledShare.IsPaidByPayments);
+        Assert.True(settledShare.IsManuallySettled);
+        Assert.Equal(balancesBefore, await GetBalancesAsync(data.GroupId));
+
+        using var revertResponse = await SendAuthenticatedAsync(
+            HttpMethod.Put,
+            $"/api/groups/{data.GroupId}/expenses/{expenseId}/participants/{memberId}/settlement",
+            GroupTestTelegramIds.Owner,
+            JsonContent.Create(new UpdateExpenseShareSettlementRequestDto { IsManuallySettled = false }));
+        var revertedExpense = await revertResponse.Content.ReadFromJsonAsync<ExpenseResponseDto>();
+
+        Assert.Equal(HttpStatusCode.OK, revertResponse.StatusCode);
+        Assert.NotNull(revertedExpense);
+        var revertedShare = revertedExpense.Shares.Single(share => share.UserId == memberId);
+        Assert.False(revertedShare.IsPaid);
+        Assert.False(revertedShare.IsPaidByPayments);
+        Assert.False(revertedShare.IsManuallySettled);
+    }
+
+    [Fact]
+    public async Task ManualSettlement_RejectsShareAlreadyPaidByExpensePayments()
+    {
+        var data = await GroupTestData.SeedGroupAsync(Database);
+        var ownerId = data.UserIds[GroupTestTelegramIds.Owner];
+        var memberId = data.UserIds[GroupTestTelegramIds.Member];
+        var expenseId = await GroupTestData.SeedExpenseAsync(
+            Database,
+            data.GroupId,
+            ownerId,
+            ownerId,
+            [(ownerId, 70), (memberId, 30)]);
+
+        using var paymentResponse = await SendAuthenticatedAsync(
+            HttpMethod.Post,
+            $"/api/groups/{data.GroupId}/payments/expense",
+            GroupTestTelegramIds.Member,
+            JsonContent.Create(new CreatePaymentForExpenseRequestDto
+            {
+                ExpenseId = expenseId,
+                FromUserId = memberId,
+                Amount = 30
+            }));
+        Assert.Equal(HttpStatusCode.OK, paymentResponse.StatusCode);
+
+        using var settlementResponse = await SendAuthenticatedAsync(
+            HttpMethod.Put,
+            $"/api/groups/{data.GroupId}/expenses/{expenseId}/participants/{memberId}/settlement",
+            GroupTestTelegramIds.Owner,
+            JsonContent.Create(new UpdateExpenseShareSettlementRequestDto { IsManuallySettled = false }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, settlementResponse.StatusCode);
+    }
+
     private async Task<bool> GetShareIsPaidAsync(Guid groupId, Guid expenseId, Guid userId)
     {
         using var response = await SendAuthenticatedAsync(
@@ -256,6 +334,22 @@ public sealed class ExpenseAndPaymentTests(PostgreSqlFixture database) : Integra
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(expense);
         return expense.Shares.Single(share => share.UserId == userId).IsPaid;
+    }
+
+    private async Task<IReadOnlyList<(Guid UserId, decimal Balance)>> GetBalancesAsync(Guid groupId)
+    {
+        using var response = await SendAuthenticatedAsync(
+            HttpMethod.Get,
+            $"/api/groups/{groupId}/balance",
+            GroupTestTelegramIds.Member);
+        var balance = await response.Content.ReadFromJsonAsync<BalanceResponseDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(balance);
+        return balance.Balances
+            .OrderBy(item => item.UserId)
+            .Select(item => (item.UserId, item.Balance))
+            .ToList();
     }
 
     private async Task<HttpResponseMessage> SendAuthenticatedAsync(HttpMethod method, string uri, long telegramId, HttpContent? content = null)

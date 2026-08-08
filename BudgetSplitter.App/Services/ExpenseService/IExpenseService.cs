@@ -6,15 +6,15 @@ namespace BudgetSplitter.App.Services.ExpenseService;
 
 public interface IExpenseService
 {
-    Task<IEnumerable<ExpenseResponseDto>> 
+    Task<IEnumerable<ExpenseResponseDto>>
         GetGroupExpensesAsync(Guid groupId, bool includeDrafts = false);
 
     // детали одной траты (со списком долей)
-    Task<ExpenseResponseDto> 
+    Task<ExpenseResponseDto>
         GetExpenseByIdAsync(Guid groupId, Guid expenseId);
 
     // создаёт черновик или сразу подтверждённую трату
-    Task<ExpenseResponseDto> 
+    Task<ExpenseResponseDto>
         CreateExpenseAsync(Guid groupId, CreateExpenseRequestDto dto, Guid createdByUserId);
 
     // редактирует поля самой траты (metadata)
@@ -28,21 +28,27 @@ public interface IExpenseService
     // подтверждает черновик
     Task ConfirmExpenseAsync(Guid groupId, Guid expenseId);
 
-    Task<IEnumerable<ExpenseShareResponseDto>> 
+    Task<IEnumerable<ExpenseShareResponseDto>>
         GetExpenseParticipantsAsync(Guid groupId, Guid expenseId);
 
     Task AddExpenseParticipantsAsync(
-        Guid groupId, 
-        Guid expenseId, 
+        Guid groupId,
+        Guid expenseId,
         ExpenseShareCreateDto share);
 
     Task UpdateExpenseParticipantAsync(
-        Guid groupId, 
-        Guid expenseId, 
+        Guid groupId,
+        Guid expenseId,
         ExpenseShareCreateDto share);
 
     Task RemoveExpenseParticipantAsync(
-        Guid groupId, 
-        Guid expenseId, 
+        Guid groupId,
+        Guid expenseId,
         Guid userId);
+
+    Task<ExpenseResponseDto> UpdateExpenseShareSettlementAsync(
+        Guid groupId,
+        Guid expenseId,
+        Guid userId,
+        UpdateExpenseShareSettlementRequestDto dto);
 }

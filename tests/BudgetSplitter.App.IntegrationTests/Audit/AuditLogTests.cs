@@ -187,4 +187,46 @@ public sealed class AuditLogTests(PostgreSqlFixture database) : IntegrationTestB
         Assert.Contains("ToParticipant", entry.NewValuesJson);
         Assert.Contains("Test", entry.NewValuesJson);
     }
+
+    [Fact]
+    public async Task ManualSettlement_WritesShareHistoryWithExpenseAndParticipantContext()
+    {
+        var seededGroup = await GroupTestData.SeedGroupAsync(Database);
+        var ownerId = seededGroup.UserIds[GroupTestTelegramIds.Owner];
+        var memberId = seededGroup.UserIds[GroupTestTelegramIds.Member];
+        var expenseId = await GroupTestData.SeedExpenseAsync(
+            Database,
+            seededGroup.GroupId,
+            ownerId,
+            ownerId,
+            [(ownerId, 70), (memberId, 30)]);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/api/groups/{seededGroup.GroupId}/expenses/{expenseId}/participants/{memberId}/settlement")
+        {
+            Content = JsonContent.Create(new UpdateExpenseShareSettlementRequestDto
+            {
+                IsManuallySettled = true
+            })
+        };
+        request.Headers.Add(
+            TelegramAuthDefaults.InitDataHeaderName,
+            TelegramInitDataBuilder.Create(GroupTestTelegramIds.Owner));
+
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var db = GroupTestData.CreateDbContext(Database);
+        var entry = await db.AuditLogEntries.SingleAsync(auditEntry =>
+            auditEntry.GroupId == seededGroup.GroupId &&
+            auditEntry.SubjectType == nameof(Persistence.ExpenseShare) &&
+            auditEntry.Operation == "Modified");
+
+        Assert.Equal(GroupTestTelegramIds.Owner, entry.ActorTelegramId);
+        Assert.Contains("IsManuallySettled", entry.NewValuesJson);
+        Assert.Contains("ExpenseTitle", entry.NewValuesJson);
+        Assert.Contains("Participant", entry.NewValuesJson);
+    }
 }

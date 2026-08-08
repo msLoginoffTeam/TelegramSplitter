@@ -466,6 +466,49 @@ public class ExpenseService : IExpenseService
         });
     }
 
+    public async Task<ExpenseResponseDto> UpdateExpenseShareSettlementAsync(
+        Guid groupId,
+        Guid expenseId,
+        Guid userId,
+        UpdateExpenseShareSettlementRequestDto dto)
+    {
+        await _db.ExecuteInTransactionAsync(async () =>
+        {
+            await LockExpenseAsync(expenseId);
+
+            var share = await _db.ExpenseShares
+                .Include(candidate => candidate.Expense)
+                .FirstOrDefaultAsync(candidate =>
+                    candidate.ExpenseId == expenseId && candidate.UserId == userId)
+                ?? throw new NotFoundException($"Share for user {userId} not found");
+
+            if (share.Expense.GroupId != groupId)
+            {
+                throw new NotFoundException($"Expense {expenseId} not found in group {groupId}");
+            }
+
+            var paidAmount = await _db.Payments
+                .Where(payment => payment.ExpenseId == expenseId && payment.FromUserId == userId)
+                .SumAsync(payment => payment.Amount);
+            var isPaidByPayments = ExpenseShareSettlement.IsPaidByPayments(
+                share.UserId,
+                share.Expense.PayerId,
+                share.Amount,
+                paidAmount);
+
+            if (isPaidByPayments)
+            {
+                throw new BadRequestException(
+                    "A share settled by payments cannot be changed manually.");
+            }
+
+            share.IsManuallySettled = dto.IsManuallySettled;
+            await _db.SaveChangesAsync();
+        });
+
+        return await GetExpenseByIdAsync(groupId, expenseId);
+    }
+
     private async Task EnsureGroupMembersAsync(Guid groupId, IEnumerable<Guid> userIds)
     {
         var requiredUserIds = userIds.Distinct().ToArray();
@@ -508,17 +551,32 @@ public class ExpenseService : IExpenseService
             CreatedByUserId = expense.CreatedByUserId,
             CreatedAt = expense.CreatedAt,
             IsDraft = expense.IsDraft,
-            Shares = expense.Shares.Select(share => new ExpenseShareResponseDto
+            Shares = expense.Shares.Select(share =>
             {
-                UserId = share.UserId,
-                DisplayName = share.User.DisplayName,
-                Username = share.User.Username,
-                Amount = share.Amount,
-                IsPaid = ExpenseShareSettlement.IsPaid(
+                var paidAmount = expense.Payments
+                    .Where(payment => payment.FromUserId == share.UserId)
+                    .Sum(payment => payment.Amount);
+                var isPaidByPayments = ExpenseShareSettlement.IsPaidByPayments(
                     share.UserId,
                     expense.PayerId,
                     share.Amount,
-                    expense.Payments.Where(payment => payment.FromUserId == share.UserId).Sum(payment => payment.Amount))
+                    paidAmount);
+
+                return new ExpenseShareResponseDto
+                {
+                    UserId = share.UserId,
+                    DisplayName = share.User.DisplayName,
+                    Username = share.User.Username,
+                    Amount = share.Amount,
+                    IsPaid = ExpenseShareSettlement.IsSettled(
+                        share.UserId,
+                        expense.PayerId,
+                        share.Amount,
+                        paidAmount,
+                        share.IsManuallySettled),
+                    IsPaidByPayments = isPaidByPayments,
+                    IsManuallySettled = !isPaidByPayments && share.IsManuallySettled
+                };
             }).ToList()
         };
     }
