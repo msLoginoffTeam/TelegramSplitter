@@ -34,7 +34,7 @@
 - `AppDbContextDesignTimeFactory` из persistence-проекта изолирует EF tooling от запуска API и автоматического применения migration; `dotnet ef migrations add` больше не требует локальную БД.
 - На текущем этапе БД считается чистой: новые migrations не обязаны переносить или чинить исторические production-данные. Перед первым реальным production deployment это решение нужно пересмотреть.
 - Backend собирается без compiler warnings.
-- Есть 16 unit и 36 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
+- Есть 16 unit и 38 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
 - Docker CLI и OrbStack доступны; Compose разделён между репозиториями.
 - Локальные секреты остаются только в игнорируемых `appsettings.Local.json`/`.env`; не выводить и не коммитить их.
@@ -45,7 +45,9 @@
 - Используется `AuditLogLens` `0.2.0-alpha.2` в transactional-режиме. `AppDbContext.SaveChanges` централизованно открывает retry-safe transaction; данные и audit entry фиксируются или откатываются вместе.
 - Автоматически аудируются `Group`, `Expense`, `ExpenseShare`, `Payment`. `User` намеренно исключён: профиль синхронизируется при открытии Mini App и не должен засорять историю. Не хранится и `GroupInvite.TokenHash`.
 - Изменения `UserGroups` отражаются штатным `Collection`-enricher как поле `Group.Members`, включая синтетическое событие группы при добавлении/удалении участника. Изменения набора прав и создание invite фиксируются понятными ручными событиями; в invite-логе хранится только последние четыре символа токена, никогда не полный токен/ссылка.
+- `OperationReferenceAuditEnricher` добавляет к денежным событиям неизменяемый контекст связей: название траты, участника её доли, плательщика/автора траты, отправителя и получателя платежа. Это нужно для human-readable истории даже если изменилось только поле `Amount`.
 - У `AuditLogEntries.GroupId` нет внешнего ключа намеренно: журнал остаётся после удаления группы. `AsNoTracking` на read-only запросах сохраняется — он не мешает аудиту записей через `SaveChanges`.
+- WIP 2026-08-08: после commit `da98b22` локально добавлена история аудита. В backend рабочем diff есть read-only `GET /api/groups/{groupId}/audit-log?offset=0&take=30`, DTO page/entry и `AuditLogService`; запрос требует `ViewGroup`, возвращает события от новых к старым, `take` ограничен 100. Во frontend рабочем diff обновлены `openapi/backend.json` и `src/shared/api/generated/`, добавлены `entities/audit-log`, route `/groups/:groupId/history`, mobile page и переход из группы. Страница поддерживает загрузку следующих страниц. Эти изменения не commit/push до ручной проверки пользователя.
 
 ## Цель продукта
 

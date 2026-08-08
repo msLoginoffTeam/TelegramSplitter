@@ -78,7 +78,7 @@ builder.Services
     .AddAuditRestrictions<BudgetSplitterAuditRestrictions>()
     .AddAuditEnricher<AuditMetadataEnricher>()
     .AddAuditEnricher<GroupMembersAuditEnricher>()
-    .AddAuditEnricher<ExpenseShareGroupAuditEnricher>()
+    .AddAuditEnricher<OperationReferenceAuditEnricher>()
     .AddAuditEnricher<AuditUserNameEnricher>();
 
 builder.Services.AddScoped<IGroupService, GroupService>();

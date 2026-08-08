@@ -129,6 +129,62 @@ public sealed class AuditLogTests(PostgreSqlFixture database) : IntegrationTestB
         Assert.Equal(2, shareEntries.Count);
         Assert.All(shareEntries, entry => Assert.Equal("Modified", entry.Operation));
         Assert.Contains(shareEntries, entry =>
-            entry.OldValuesJson!.Contains("30") && entry.NewValuesJson!.Contains("40"));
+            entry.OldValuesJson!.Contains("30") &&
+            entry.NewValuesJson!.Contains("40") &&
+            entry.NewValuesJson.Contains("Updated expense") &&
+            entry.NewValuesJson.Contains("Member 0"));
+    }
+
+    [Fact]
+    public async Task UpdatePayment_WritesReadableSenderAndRecipientContext()
+    {
+        var seededGroup = await GroupTestData.SeedGroupAsync(Database);
+        var ownerId = seededGroup.UserIds[GroupTestTelegramIds.Owner];
+        var memberId = seededGroup.UserIds[GroupTestTelegramIds.Member];
+
+        using var createRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/groups/{seededGroup.GroupId}/payments/direct")
+        {
+            Content = JsonContent.Create(new CreateDirectPaymentRequestDto
+            {
+                FromUserId = ownerId,
+                ToUserId = memberId,
+                Amount = 10
+            })
+        };
+        createRequest.Headers.Add(
+            TelegramAuthDefaults.InitDataHeaderName,
+            TelegramInitDataBuilder.Create(GroupTestTelegramIds.Owner));
+
+        using var createResponse = await Client.SendAsync(createRequest);
+        var payment = await createResponse.Content.ReadFromJsonAsync<PaymentResponseDto>();
+
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.NotNull(payment);
+
+        using var updateRequest = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/api/groups/{seededGroup.GroupId}/payments/{payment.Id}")
+        {
+            Content = JsonContent.Create(new UpdatePaymentRequestDto { Amount = 15 })
+        };
+        updateRequest.Headers.Add(
+            TelegramAuthDefaults.InitDataHeaderName,
+            TelegramInitDataBuilder.Create(GroupTestTelegramIds.Owner));
+
+        using var updateResponse = await Client.SendAsync(updateRequest);
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        await using var db = GroupTestData.CreateDbContext(Database);
+        var entry = await db.AuditLogEntries.SingleAsync(auditEntry =>
+            auditEntry.GroupId == seededGroup.GroupId &&
+            auditEntry.SubjectType == nameof(Persistence.Payment) &&
+            auditEntry.Operation == "Modified");
+
+        Assert.Contains("FromParticipant", entry.NewValuesJson);
+        Assert.Contains("ToParticipant", entry.NewValuesJson);
+        Assert.Contains("Test", entry.NewValuesJson);
     }
 }
