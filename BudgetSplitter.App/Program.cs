@@ -1,5 +1,8 @@
 using System.Reflection;
+using AuditLogLens;
+using AuditLogLens.Configuration;
 using BudgetSplitter.App.Authentication;
+using BudgetSplitter.App.Audit;
 using BudgetSplitter.App.Authorization;
 using BudgetSplitter.App.Middlewares;
 using BudgetSplitter.App.Services.BalanceService;
@@ -68,6 +71,15 @@ builder.Services.AddSwaggerGen(c =>
 
 });
 
+builder.Services
+    .AddAuditInfrastructure(options => options.WriteMode = AuditWriteMode.Transactional)
+    .AddEfAuditWriter<AuditLogEntry, AuditLogEntryMapper>()
+    .AddAuditRestrictions<BudgetSplitterAuditRestrictions>()
+    .AddAuditEnricher<AuditMetadataEnricher>()
+    .AddAuditEnricher<GroupMembersAuditEnricher>()
+    .AddAuditEnricher<ExpenseShareGroupAuditEnricher>()
+    .AddAuditEnricher<AuditUserNameEnricher>();
+
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
@@ -77,7 +89,7 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IGroupAuthorizationService, GroupAuthorizationService>();
 builder.Services.AddScoped<GroupPermissionAuthorizationFilter>();
 
-builder.Services.AddDbContext<AppDbContext>(opts =>
+builder.Services.AddDbContext<AppDbContext>((provider, opts) =>
 {
     if (string.IsNullOrWhiteSpace(connectionString))
     {
@@ -91,6 +103,7 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
             maxRetryDelay: TimeSpan.FromSeconds(10),
             errorCodesToAdd: null);
     });
+    opts.AddAuditInterceptor(provider);
 });
 
 var app = builder.Build();

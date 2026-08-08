@@ -1,6 +1,6 @@
 # Telegram Splitter — контекст проекта
 
-Обновлено: 2026-08-06.
+Обновлено: 2026-08-08.
 
 ## Карта знаний
 
@@ -34,10 +34,18 @@
 - `AppDbContextDesignTimeFactory` из persistence-проекта изолирует EF tooling от запуска API и автоматического применения migration; `dotnet ef migrations add` больше не требует локальную БД.
 - На текущем этапе БД считается чистой: новые migrations не обязаны переносить или чинить исторические production-данные. Перед первым реальным production deployment это решение нужно пересмотреть.
 - Backend собирается без compiler warnings.
-- Есть 16 unit и 31 integration test. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
+- Есть 16 unit и 36 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
 - Docker CLI и OrbStack доступны; Compose разделён между репозиториями.
 - Локальные секреты остаются только в игнорируемых `appsettings.Local.json`/`.env`; не выводить и не коммитить их.
+
+## Audit history
+
+- История доменных изменений хранится в `AuditLogEntries`; у записи есть время, группа, Telegram-инициатор, тип/операция сущности, ключ и JSON старых/новых значений.
+- Используется `AuditLogLens` `0.2.0-alpha.2` в transactional-режиме. `AppDbContext.SaveChanges` централизованно открывает retry-safe transaction; данные и audit entry фиксируются или откатываются вместе.
+- Автоматически аудируются `Group`, `Expense`, `ExpenseShare`, `Payment`. `User` намеренно исключён: профиль синхронизируется при открытии Mini App и не должен засорять историю. Не хранится и `GroupInvite.TokenHash`.
+- Изменения `UserGroups` отражаются штатным `Collection`-enricher как поле `Group.Members`, включая синтетическое событие группы при добавлении/удалении участника. Изменения набора прав и создание invite фиксируются понятными ручными событиями; в invite-логе хранится только последние четыре символа токена, никогда не полный токен/ссылка.
+- У `AuditLogEntries.GroupId` нет внешнего ключа намеренно: журнал остаётся после удаления группы. `AsNoTracking` на read-only запросах сохраняется — он не мешает аудиту записей через `SaveChanges`.
 
 ## Цель продукта
 

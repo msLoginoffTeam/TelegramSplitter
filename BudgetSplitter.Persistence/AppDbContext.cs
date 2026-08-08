@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Transactions;
 
 namespace Persistence
 {
@@ -17,6 +18,7 @@ namespace Persistence
         public DbSet<ExpenseShare> ExpenseShares { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
         public DbSet<GroupInvite> GroupInvites { get; set; } = null!;
+        public DbSet<AuditLogEntry> AuditLogEntries { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -87,6 +89,17 @@ namespace Persistence
                     .WithMany()
                     .HasForeignKey(invite => invite.CreatedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<AuditLogEntry>(b =>
+            {
+                b.HasKey(entry => entry.Id);
+                b.Property(entry => entry.SubjectType).HasMaxLength(120);
+                b.Property(entry => entry.Operation).HasMaxLength(20);
+                b.Property(entry => entry.ActorDisplayName).HasMaxLength(200);
+                b.Property(entry => entry.ActorUsername).HasMaxLength(100);
+                b.HasIndex(entry => new { entry.GroupId, entry.OccurredAtUtc });
+                b.HasIndex(entry => entry.OccurredAtUtc);
             });
 
             // Expense
@@ -176,5 +189,44 @@ namespace Persistence
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            if (HasActiveTransaction())
+            {
+                return base.SaveChanges(acceptAllChangesOnSuccess);
+            }
+
+            var strategy = Database.CreateExecutionStrategy();
+            return strategy.Execute(() =>
+            {
+                using var transaction = Database.BeginTransaction();
+                var result = base.SaveChanges(acceptAllChangesOnSuccess);
+                transaction.Commit();
+                return result;
+            });
+        }
+
+        public override Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            if (HasActiveTransaction())
+            {
+                return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            }
+
+            var strategy = Database.CreateExecutionStrategy();
+            return strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+                var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return result;
+            });
+        }
+
+        private bool HasActiveTransaction()
+            => Database.CurrentTransaction is not null || Transaction.Current is not null;
     }
 }

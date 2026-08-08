@@ -1,3 +1,4 @@
+using AuditLogLens;
 using BudgetSplitter.App.Authentication;
 using BudgetSplitter.Tests.Shared;
 using Microsoft.AspNetCore.Hosting;
@@ -28,12 +29,16 @@ public sealed class IntegrationTestWebApplicationFactory : WebApplicationFactory
         {
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
-            services.AddDbContext<AppDbContext>(options => options.UseNpgsql(
-                _database.ConnectionString,
-                npgsql => npgsql.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(5),
-                    errorCodesToAdd: null)));
+            services.AddDbContext<AppDbContext>((provider, options) =>
+            {
+                options.UseNpgsql(
+                    _database.ConnectionString,
+                    npgsql => npgsql.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorCodesToAdd: null));
+                options.AddAuditInterceptor(provider);
+            });
             services.PostConfigure<TelegramAuthOptions>(options =>
             {
                 options.BotToken = TelegramInitDataBuilder.BotToken;

@@ -2,6 +2,10 @@ using BudgetSplitter.Common.Dtos.Request;
 using BudgetSplitter.Common.Dtos.Response;
 using BudgetSplitter.Common.Exceptions;
 using BudgetSplitter.Common.Authorization;
+using AuditLogLens.Changes;
+using AuditLogLens.Manual;
+using AuditLogLens.Pipeline;
+using BudgetSplitter.App.Audit;
 using BudgetSplitter.App.Authentication;
 using BudgetSplitter.App.Infrastructure.Database;
 using Microsoft.AspNetCore.WebUtilities;
@@ -18,15 +22,21 @@ public class GroupService : IGroupService
     private readonly AppDbContext _db;
     private readonly TelegramAuthOptions _telegramOptions;
     private readonly TelegramBotIdentityService _botIdentity;
+    private readonly IAuditChangeFactory _auditChangeFactory;
+    private readonly IAuditPipeline _auditPipeline;
 
     public GroupService(
         AppDbContext db,
         IOptions<TelegramAuthOptions> telegramOptions,
-        TelegramBotIdentityService botIdentity)
+        TelegramBotIdentityService botIdentity,
+        IAuditChangeFactory auditChangeFactory,
+        IAuditPipeline auditPipeline)
     {
         _db = db;
         _telegramOptions = telegramOptions.Value;
         _botIdentity = botIdentity;
+        _auditChangeFactory = auditChangeFactory;
+        _auditPipeline = auditPipeline;
     }
 
     public async Task<IEnumerable<GroupOverviewResponseDto>> GetMyGroupsAsync(Guid userId)
@@ -209,6 +219,10 @@ public class GroupService : IGroupService
                          ?? throw new NotFoundException($"User {userId} is not a member of group {groupId}");
 
         var permissions = ResolvePermissions(dto);
+        var previousPermissions = membership.Permissions
+            .Select(permission => permission.Permission.ToString())
+            .Order()
+            .ToArray();
         membership.Permissions.Clear();
         foreach (var permission in permissions)
         {
@@ -219,6 +233,31 @@ public class GroupService : IGroupService
                 Permission = permission
             });
         }
+
+        var role = GroupRolePresets.ResolveRole(permissions, isOwner: false);
+        var auditChange = _auditChangeFactory.CreateManual(
+            tableName: "GroupMemberPermissions",
+            rowKey: new Dictionary<string, object?>
+            {
+                [nameof(GroupMemberPermission.GroupId)] = groupId,
+                [nameof(GroupMemberPermission.UserId)] = userId
+            },
+            state: AuditChangeState.Modified,
+            oldValues: new Dictionary<string, object?>
+            {
+                ["Permissions"] = previousPermissions
+            },
+            newValues: new Dictionary<string, object?>
+            {
+                ["MemberUserId"] = userId,
+                ["Role"] = role.ToString(),
+                ["Permissions"] = permissions.Select(permission => permission.ToString()).Order().ToArray()
+            },
+            extraValues: new Dictionary<string, object?>
+            {
+                [AuditMetadataKeys.GroupId] = groupId
+            });
+        await _auditPipeline.ProcessAsync(_db, [auditChange]);
 
         await _db.SaveChangesAsync();
     }
@@ -257,14 +296,31 @@ public class GroupService : IGroupService
         var now = DateTime.UtcNow;
         var expiresAt = now.AddHours(Math.Max(1, _telegramOptions.InviteExpirationHours));
 
-        _db.GroupInvites.Add(new GroupInvite
+        var invite = new GroupInvite
         {
             GroupId = groupId,
             CreatedByUserId = createdByUserId,
             TokenHash = HashInviteToken(token),
             CreatedAtUtc = now,
             ExpiresAtUtc = expiresAt
-        });
+        };
+        _db.GroupInvites.Add(invite);
+
+        var auditChange = _auditChangeFactory.CreateManual(
+            tableName: "GroupInvite",
+            rowKey: invite.Id,
+            state: AuditChangeState.Added,
+            newValues: new Dictionary<string, object?>
+            {
+                ["TokenSuffix"] = token[^4..],
+                [nameof(GroupInvite.ExpiresAtUtc)] = expiresAt
+            },
+            source: invite,
+            extraValues: new Dictionary<string, object?>
+            {
+                [AuditMetadataKeys.GroupId] = groupId
+            });
+        await _auditPipeline.ProcessAsync(_db, [auditChange]);
         await _db.SaveChangesAsync();
 
         return new GroupInviteResponseDto
