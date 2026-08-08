@@ -106,6 +106,7 @@ namespace Persistence
             modelBuilder.Entity<Expense>(b =>
             {
                 b.HasKey(e => e.Id);
+                b.Property(e => e.Description).HasMaxLength(1000);
                 b.ToTable(table =>
                 {
                     table.HasCheckConstraint("CK_Expenses_TotalAmount_Positive", "\"TotalAmount\" > 0");
@@ -154,6 +155,7 @@ namespace Persistence
             modelBuilder.Entity<Payment>(b =>
             {
                 b.HasKey(p => p.Id);
+                b.Property(p => p.Description).HasMaxLength(1000);
                 b.ToTable(table =>
                 {
                     table.HasCheckConstraint("CK_Payments_Amount_Positive", "\"Amount\" > 0");

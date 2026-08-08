@@ -8,4 +8,5 @@ public class CreatePaymentForExpenseRequestDto
     public Guid ExpenseId { get; set; }
     public Guid FromUserId { get; set; }
     public decimal Amount { get; set; }
+    public string? Description { get; set; }
 }

@@ -31,6 +31,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 ToUsername = p.ToUser.Username,
                 CreatedByUserId = p.CreatedByUserId,
                 Amount = p.Amount,
+                Description = p.Description,
                 Timestamp = p.Timestamp
             });
         }
@@ -54,6 +55,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 ToDisplayName = p.ToUser.DisplayName,
                 CreatedByUserId = p.CreatedByUserId,
                 Amount = p.Amount,
+                Description = p.Description,
                 Timestamp = p.Timestamp
             });
         }
@@ -64,6 +66,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
             Guid createdByUserId)
         {
             EnsurePositiveAmount(dto.Amount);
+            var description = NormalizeDescription(dto.Description);
 
             return await _db.ExecuteInTransactionAsync(async () =>
             {
@@ -99,6 +102,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                     ToUserId = expense.PayerId,
                     CreatedByUserId = createdByUserId,
                     Amount = dto.Amount,
+                    Description = description,
                     Timestamp = DateTime.UtcNow
                 };
                 _db.Payments.Add(payment);
@@ -112,6 +116,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                     ToUserId = payment.ToUserId,
                     CreatedByUserId = payment.CreatedByUserId,
                     Amount = payment.Amount,
+                    Description = payment.Description,
                     Timestamp = payment.Timestamp
                 };
             });
@@ -123,6 +128,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
             Guid createdByUserId)
         {
             EnsurePositiveAmount(dto.Amount);
+            var description = NormalizeDescription(dto.Description);
             if (dto.FromUserId == dto.ToUserId)
             {
                 throw new BadRequestException("Payment sender and recipient must be different users.");
@@ -144,6 +150,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 ToUserId = dto.ToUserId,
                 CreatedByUserId = createdByUserId,
                 Amount = dto.Amount,
+                Description = description,
                 Timestamp = DateTime.UtcNow
             };
             _db.Payments.Add(payment);
@@ -157,6 +164,7 @@ namespace BudgetSplitter.App.Services.PaymentService;
                 ToUserId = payment.ToUserId,
                 CreatedByUserId = payment.CreatedByUserId,
                 Amount = payment.Amount,
+                Description = payment.Description,
                 Timestamp = payment.Timestamp
             };
         }
@@ -165,8 +173,9 @@ namespace BudgetSplitter.App.Services.PaymentService;
              Guid groupId,
              Guid paymentId,
              UpdatePaymentRequestDto dto)
-         {
-             EnsurePositiveAmount(dto.Amount);
+        {
+            EnsurePositiveAmount(dto.Amount);
+            var description = NormalizeDescription(dto.Description);
 
              await _db.ExecuteInTransactionAsync(async () =>
              {
@@ -192,8 +201,9 @@ namespace BudgetSplitter.App.Services.PaymentService;
                              $"Updated payment ({dto.Amount}) exceeds remaining debt ({share.Amount - (paidSum - payment.Amount)})");
                  }
         
-                 payment.Amount = dto.Amount;
-                 await _db.SaveChangesAsync();
+                payment.Amount = dto.Amount;
+                payment.Description = description;
+                await _db.SaveChangesAsync();
              });
         }
 
@@ -223,6 +233,17 @@ namespace BudgetSplitter.App.Services.PaymentService;
             {
                 throw new BadRequestException("Payment amount must be positive.");
             }
+        }
+
+        private static string? NormalizeDescription(string? description)
+        {
+            var normalized = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+            if (normalized?.Length > 1000)
+            {
+                throw new BadRequestException("Payment description cannot exceed 1000 characters.");
+            }
+
+            return normalized;
         }
 
         private async Task LockExpenseAsync(Guid expenseId)

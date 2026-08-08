@@ -23,6 +23,9 @@ public class Expense
     [Required, MaxLength(300)]
     public string Title { get; set; } = null!;
 
+    [MaxLength(1000)]
+    public string? Description { get; set; }
+
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalAmount { get; set; }
 

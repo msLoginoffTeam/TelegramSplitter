@@ -6,4 +6,5 @@ namespace BudgetSplitter.Common.Dtos.Request;
 public class UpdatePaymentRequestDto
 {
     public decimal Amount { get; set; }
+    public string? Description { get; set; }
 }

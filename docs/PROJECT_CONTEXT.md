@@ -34,7 +34,7 @@
 - `AppDbContextDesignTimeFactory` из persistence-проекта изолирует EF tooling от запуска API и автоматического применения migration; `dotnet ef migrations add` больше не требует локальную БД.
 - На текущем этапе БД считается чистой: новые migrations не обязаны переносить или чинить исторические production-данные. Перед первым реальным production deployment это решение нужно пересмотреть.
 - Backend собирается без compiler warnings.
-- Есть 16 unit и 38 integration tests. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
+- Есть 17 unit и 41 integration test. Integration suite использует xUnit, `WebApplicationFactory`, Testcontainers PostgreSQL и Respawn; CI запускает их на push/PR.
 - Go-бот собирается (`go test ./...`), но содержательных тестов нет.
 - Docker CLI и OrbStack доступны; Compose разделён между репозиториями.
 - Локальные секреты остаются только в игнорируемых `appsettings.Local.json`/`.env`; не выводить и не коммитить их.
@@ -62,6 +62,7 @@ Telegram Mini App для совместных расходов: группы, т
 - `GroupInvite` — токен для вступления в группу, хранимый в БД только в виде хеша и действующий до истечения срока.
 - MVP работает только с рублями: без поля currency, конвертаций и нескольких валют внутри группы.
 - `ExpenseShare.IsPaid` не хранится в БД: поле ответа вычисляется из платежей этой доли; payer share считается закрытой автоматически.
+- У `ExpenseShare` есть отдельный `IsManuallySettled`: это ручной визуальный статус доли, не денежная операция. Он доступен только пока доля не закрыта платежами, не меняет balances/transfers и может быть возвращён в состояние долга. В ответе API различаются `IsPaidByPayments`, `IsManuallySettled` и итоговый `IsPaid`; все изменения попадают в audit history.
 - Положительный баланс означает «пользователю должны», отрицательный — «пользователь должен».
 - Итоговые transfers рассчитываются по чистым балансам и устраняют встречные/циклические переводы.
 

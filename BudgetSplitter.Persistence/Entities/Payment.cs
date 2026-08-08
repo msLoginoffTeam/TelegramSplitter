@@ -27,6 +27,9 @@ public class Payment
     [Column(TypeName = "decimal(18,2)")]
     public decimal Amount { get; set; }
 
+    [MaxLength(1000)]
+    public string? Description { get; set; }
+
     public Guid? ExpenseId { get; set; }
     public Expense? Expense { get; set; }
 

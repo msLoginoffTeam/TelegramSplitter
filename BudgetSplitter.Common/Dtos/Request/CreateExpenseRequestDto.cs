@@ -6,6 +6,7 @@ namespace BudgetSplitter.Common.Dtos.Request;
 public class CreateExpenseRequestDto
 {
     public string Title { get; set; } = null!;
+    public string? Description { get; set; }
     public decimal TotalAmount { get; set; }
     public Guid PayerId { get; set; }
     public bool IsDraft { get; set; }

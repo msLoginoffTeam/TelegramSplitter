@@ -46,6 +46,7 @@ public class ExpenseService : IExpenseService
     {
         EnsureValidTitle(dto.Title);
         EnsurePositiveAmount(dto.TotalAmount, "Total amount");
+        var description = NormalizeDescription(dto.Description);
 
         var shareUserIds = dto.Shares.Select(share => share.UserId).ToArray();
         if (shareUserIds.Contains(dto.PayerId))
@@ -76,6 +77,7 @@ public class ExpenseService : IExpenseService
         {
             GroupId = groupId,
             Title = dto.Title,
+            Description = description,
             TotalAmount = dto.TotalAmount,
             PayerId = dto.PayerId,
             CreatedByUserId = createdByUserId,
@@ -159,6 +161,7 @@ public class ExpenseService : IExpenseService
     {
         EnsureValidTitle(dto.Title);
         EnsurePositiveAmount(dto.TotalAmount, "Total amount");
+        var description = NormalizeDescription(dto.Description);
 
         var shareUserIds = dto.Shares.Select(share => share.UserId).ToArray();
         if (shareUserIds.Contains(dto.PayerId))
@@ -215,6 +218,7 @@ public class ExpenseService : IExpenseService
             }
 
             expense.Title = dto.Title;
+            expense.Description = description;
             expense.TotalAmount = dto.TotalAmount;
             expense.PayerId = dto.PayerId;
 
@@ -538,12 +542,24 @@ public class ExpenseService : IExpenseService
         }
     }
 
+    private static string? NormalizeDescription(string? description)
+    {
+        var normalized = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        if (normalized?.Length > 1000)
+        {
+            throw new BadRequestException("Expense description cannot exceed 1000 characters.");
+        }
+
+        return normalized;
+    }
+
     private static ExpenseResponseDto ToResponse(Expense expense)
     {
         return new ExpenseResponseDto
         {
             Id = expense.Id,
             Title = expense.Title,
+            Description = expense.Description,
             TotalAmount = expense.TotalAmount,
             PayerId = expense.PayerId,
             PayerName = expense.Payer.DisplayName,
