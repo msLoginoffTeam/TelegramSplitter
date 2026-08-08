@@ -36,8 +36,10 @@ services:
       db:
         condition: service_healthy
     networks:
-      - default
-      - splitter-internal
+      default: {}
+      splitter-internal:
+        aliases:
+          - splitter-api
 
 volumes:
   telegram-splitter-postgres-data:
